@@ -15,6 +15,20 @@ export default tseslint.config(
       ecmaVersion: "latest",
       sourceType: "module",
     },
-    rules: {},
+    rules: {
+      "prettier/prettier": [
+        "warn",
+        {
+          trailingComma: "all",
+          printWidth: 120,
+          tabWidth: 2,
+        },
+      ],
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-explicit-any": "off",
+    },
   },
 );
