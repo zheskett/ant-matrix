@@ -1,8 +1,10 @@
-import { Assets, Container, Sprite, Ticker } from "pixi.js";
+import { Container, Ticker } from "pixi.js";
 import { IScene, Manager } from "../util/manager";
+import { Ant } from "../objects/ant";
 
 export class MainScene extends Container implements IScene {
-  private ant: Sprite;
+  private ant: Ant;
+  private last500dt: number[] = [];
 
   constructor() {
     super();
@@ -10,18 +12,21 @@ export class MainScene extends Container implements IScene {
     this.initialize();
   }
 
-  private async initialize(): Promise<void> {
-    const antTexture = await Assets.load("assets/ant.png");
-    this.ant = new Sprite(antTexture);
-
-    this.ant.anchor.set(0.5);
+  private initialize(): void {
+    this.ant = new Ant();
     this.ant.position.set(Manager.width / 2, Manager.height / 2);
     this.addChild(this.ant);
   }
 
   public update(time: Ticker): void {
-    if (!this.ant) return;
+    this.ant.rotation += 0.01 * time.deltaTime;
+  }
 
-    this.ant.rotation += 0.1 * time.deltaTime;
+  public fixedUpdate(time: Ticker): void {
+    this.last500dt.push(time.FPS);
+    if (this.last500dt.length > 500) {
+      this.last500dt.shift();
+    }
+    console.log(`FPS: ${time.FPS}, Average FPS: ${this.last500dt.reduce((a, b) => a + b, 0) / this.last500dt.length}`);
   }
 }

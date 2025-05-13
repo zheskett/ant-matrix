@@ -1,4 +1,5 @@
 import { Application, Container, Ticker } from "pixi.js";
+import { Physics } from "./physics";
 
 const DEFAULT_WIDTH = 1920;
 const DEFAULT_HEIGHT = 1080;
@@ -6,6 +7,7 @@ const DEFAULT_BACKGROUND = 0xb5651d;
 
 export interface IScene extends Container {
   update(time: Ticker): void;
+  fixedUpdate(time: Ticker): void;
 }
 
 export class Manager {
@@ -36,7 +38,12 @@ export class Manager {
       width: Manager._width,
       height: Manager._height,
     });
+
+    Manager.app.ticker.maxFPS = 0;
     document.getElementById("pixi-container")!.appendChild(Manager.app.canvas);
+
+    window.addEventListener("resize", Manager.resize);
+    Manager.resize();
 
     Manager.app.ticker.add((time) => {
       if (Manager.currentScene) {
@@ -44,8 +51,11 @@ export class Manager {
       }
     });
 
-    window.addEventListener("resize", Manager.resize);
-    Manager.resize();
+    Physics.initialize((time) => {
+      if (Manager.currentScene) {
+        Manager.currentScene.fixedUpdate(time);
+      }
+    });
   }
 
   public static setScene(scene: IScene): void {
