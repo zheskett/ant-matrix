@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.5)
+project(AntMatrix C)
+find_package(raylib REQUIRED)
+add_executable(AntMatrix src/main.c)
+target_link_libraries(AntMatrix PRIVATE raylib)
