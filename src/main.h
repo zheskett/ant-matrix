@@ -1,6 +1,10 @@
 #pragma once
+#include "entities/ant.h"
+#include "vec.h"
 
 #define TARGET_FPS 60
+
+typedef vec_t(ant_t*) vec_ant_t;
 
 const int screen_w = 1920;
 const int screen_h = 1080;

@@ -1,6 +1,6 @@
 #pragma once
 #include "raylib.h"
-#include "util/uitl.h"
+#include "util/definitions.h"
 
 #define ANT_SCALE 0.5f
 #define ANT_DETECTOR_RADIUS 50.0f

@@ -2,9 +2,12 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "entities/ant.h"
 #include "raylib.h"
+#include "util/definitions.h"
+#include "vec.h"
 
 // Initialization
 int window_w = 1920;
@@ -12,17 +15,21 @@ int window_h = 1080;
 int tick_speed = 1;
 RenderTexture2D offscreen;
 Rectangle letterbox = {0, 0, screen_w, screen_h};
-ant_t* ant = NULL;
+vec_ant_t ant_vec;
 
 int main() {
   SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   InitWindow(window_w, window_h, "Ant Matrix");
+  SetTargetFPS(TARGET_FPS);
+
+  vec_init(&ant_vec);
+  for (int i = 0; i < 10; i++) {
+    vec_push(&ant_vec, create_ant(rand() % screen_w, rand() % screen_h, rand() % 360));
+  }
   offscreen = LoadRenderTexture(screen_w, screen_h);
 
-  SetTargetFPS(TARGET_FPS);
   resize_window(window_w, window_h);
 
-  ant = create_ant(screen_w / 2.0f, screen_h / 2.0f, 0);
   while (!WindowShouldClose()) {
     if (IsWindowResized()) {
       resize_window(GetScreenWidth(), GetScreenHeight());
@@ -33,8 +40,11 @@ int main() {
     render_present();
   }
 
-  destroy_ant(ant);
   UnloadRenderTexture(offscreen);
+  ant_t *ant = NULL;
+  int i = 0;
+  vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
+  vec_deinit(&ant_vec);
   CloseWindow();
 
   return 0;
@@ -67,9 +77,9 @@ void update() {
 }
 
 void fixed_update(double fixed_delta) {
-  if (ant) {
-    update_ant(ant, fixed_delta);
-  }
+  ant_t *ant = NULL;
+  int i = 0;
+  vec_foreach(&ant_vec, ant, i) { update_ant(ant, fixed_delta); }
 }
 
 void render() {
@@ -82,7 +92,12 @@ void render() {
   // Draw center lines
   DrawLine(screen_w / 2, 0, screen_w / 2, screen_h, DARKGRAY);
   DrawLine(0, screen_h / 2, screen_w, screen_h / 2, DARKGRAY);
-  draw_ant(ant);
+
+  // Draw ants
+  ant_t *ant = NULL;
+  int i = 0;
+  vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
+
   DrawFPS(0, 0);
 
   EndMode2D();

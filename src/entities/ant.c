@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "raylib.h"
-#include "util/uitl.h"
+#include "util/definitions.h"
 
 ant_t* create_ant(float x, float y, float rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
