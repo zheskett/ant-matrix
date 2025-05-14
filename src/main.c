@@ -1,30 +1,28 @@
-#include "raylib.h"
 #include <math.h>
-
-void render(void);
-void render_present(void);
-void resize_window(int w, int h);
+#include <stdio.h>
+#include "raylib.h"
+#include "main.h"
 
 // Initialization
 int window_w = 1920;
 int window_h = 1080;
-const int screen_w = 1280;
-const int screen_h = 720;
+int tick_speed = 1;
 RenderTexture2D offscreen;
-Rectangle letterbox = { 0, 0, 1920, 1080 };
+Rectangle letterbox = { 0, 0, screen_w, screen_h };
 
 int main() {
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
-  InitWindow(window_w, window_h, "raylib [core] example - basic window");
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  InitWindow(window_w, window_h, "Ant Matrix");
   offscreen = LoadRenderTexture(screen_w, screen_h);
 
-  SetTargetFPS(60);
+  SetTargetFPS(target_fps);
   resize_window(window_w, window_h);
   while (!WindowShouldClose()) {
     if (IsWindowResized()) {
       resize_window(GetScreenWidth(), GetScreenHeight());
     }
 
+    update();
     render();
     render_present();
   }
@@ -32,6 +30,54 @@ int main() {
   CloseWindow();
 
   return 0;
+}
+
+void update() {
+  double fixed_delta = 1.0 / (double) tickrate;
+  static bool first = false;
+  static double last_time = 0.0;
+  static double simulation_time = 0.0;
+  static double last_update_time = 0.0;
+
+  if (!first) {
+    last_time = GetTime();
+    last_update_time = last_time;
+    first = true;
+  }
+  double current_time = GetTime();
+  double delta_time = fmin(current_time - last_time, max_delta_time);
+
+  last_time = current_time;
+  simulation_time += delta_time;
+
+  while (simulation_time >= (fixed_delta / (double) tick_speed)) {
+    simulation_time -= fixed_delta;
+
+    fixed_update(fixed_delta);
+  }
+}
+
+void fixed_update(double fixed_delta) {
+
+}
+
+void render() {
+  Camera2D cam = {
+      .target = (Vector2){0, 0},
+      .offset = (Vector2){0, 0},
+      .rotation = 0.0f,
+      .zoom = 1.0f
+  };
+
+  BeginTextureMode(offscreen);
+  BeginMode2D(cam);
+  ClearBackground(BROWN);
+
+  DrawText("This is a test", 100, 100, 20, WHITE);
+  DrawFPS(0, 0);
+
+  EndMode2D();
+  EndTextureMode();
 }
 
 void resize_window(int w, int h) {
@@ -51,26 +97,7 @@ void resize_window(int w, int h) {
       ratio * screen_w, ratio * screen_h };
 }
 
-void render(void) {
-  Camera2D cam = {
-      .target = (Vector2){0, 0},
-      .offset = (Vector2){0, 0},
-      .rotation = 0.0f,
-      .zoom = 1.0f
-  };
-
-  BeginTextureMode(offscreen);
-  BeginMode2D(cam);
-  ClearBackground(BROWN);
-
-  DrawText("This is a test", 100, 100, 20, WHITE);
-  DrawFPS(0, 0);
-
-  EndMode2D();
-  EndTextureMode();
-}
-
-void render_present(void) {
+void render_present() {
   /* render offscreen to display */
 
   BeginDrawing();
