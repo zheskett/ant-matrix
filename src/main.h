@@ -1,3 +1,5 @@
+#pragma once
+
 const int screen_w = 1920;
 const int screen_h = 1080;
 const int tickrate = 60;
