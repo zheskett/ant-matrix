@@ -1,9 +1,10 @@
 #pragma once
 
+#define TARGET_FPS 60
+
 const int screen_w = 1920;
 const int screen_h = 1080;
 const int tickrate = 60;
-const int target_fps = 60;
 const double max_delta_time = 0.25;
 
 void fixed_update(double fixed_delta);

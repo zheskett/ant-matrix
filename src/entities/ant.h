@@ -1,10 +1,15 @@
 #pragma once
 #include "raylib.h"
+#include "util/uitl.h"
+
+#define ANT_SCALE 0.5f
+#define ANT_DETECTOR_RADIUS 50.0f
+#define ANT_DETECTOR_OFFSET 70.0f
 
 typedef struct {
-    Texture2D texture;
-    Vector2 pos;
-    float rotation;
+  Texture2D texture;
+  Vector2 pos;
+  float rotation;
 } ant_t;
 
 /**
@@ -38,3 +43,11 @@ void update_ant(ant_t* ant, float delta_time);
  * @param ant The ant entity to destroy.
  */
 void destroy_ant(ant_t* ant);
+
+/**
+ * @brief Get the circle representing the ant's detector.
+ *
+ * @param ant The ant entity.
+ * @return The circle representing the ant's detector.
+ */
+Circle get_ant_detector_circle(ant_t* ant);
