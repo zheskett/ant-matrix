@@ -15,6 +15,7 @@ double tick_speed = 1.0;
 
 int window_w = 1920;
 int window_h = 1080;
+Vector2 spawn = {0, 0};
 
 RenderTexture2D offscreen;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
@@ -22,6 +23,7 @@ vec_ant_t ant_vec;
 
 int main() {
   srand(time(NULL));
+  spawn = (Vector2){rand() % SCREEN_W, rand() % SCREEN_H};
 
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
   InitWindow(window_w, window_h, "Ant Matrix");
@@ -32,8 +34,8 @@ int main() {
   SetTextureFilter(ant_texture, TEXTURE_FILTER_BILINEAR);
 
   // Create ants
-  for (int i = 0; i < 500; i++) {
-    vec_push(&ant_vec, create_ant(rand() % SCREEN_W, rand() % SCREEN_H, &ant_texture, rand() % 360));
+  for (int i = 0; i < 20; i++) {
+    vec_push(&ant_vec, create_ant(spawn, &ant_texture, rand() % 360));
   }
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);

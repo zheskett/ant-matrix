@@ -7,14 +7,14 @@
 #include "raylib.h"
 #include "util/definitions.h"
 
-ant_t* create_ant(float x, float y, Texture2D* texture, float rotation) {
+ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
   }
 
   ant->texture = texture;
-  ant->pos = (Vector2){x, y};
+  ant->pos = pos;
   ant->rotation = rotation;
   ant->state = ANT_IDLE;
 

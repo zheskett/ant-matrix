@@ -2,7 +2,7 @@
 #include "raylib.h"
 #include "util/definitions.h"
 
-#define ANT_SCALE 0.3f
+#define ANT_SCALE 0.25f
 #define ANT_DETECTOR_RADIUS 50.0f
 #define ANT_DETECTOR_OFFSET 70.0f
 #define ANT_SPEED 100.0f
@@ -22,12 +22,12 @@ typedef struct {
 /**
  * @brief Create a new ant entity.
  *
- * @param x The x position of the ant.
- * @param y The y position of the ant.
+ * @param pos The initial position of the ant.
+ * @param texture The texture of the ant.
  * @param rotation The rotation of the ant in degrees.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
-ant_t* create_ant(float x, float y, Texture2D* texture, float rotation);
+ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation);
 
 /**
  * @brief Draw the ant entity.
