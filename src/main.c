@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "entities/ant.h"
@@ -10,23 +11,32 @@
 #include "vec.h"
 
 // Initialization
+double tick_speed = 1.0;
+
 int window_w = 1920;
 int window_h = 1080;
-int tick_speed = 1;
+
 RenderTexture2D offscreen;
-Rectangle letterbox = {0, 0, screen_w, screen_h};
+Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 vec_ant_t ant_vec;
 
 int main() {
-  SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  srand(time(NULL));
+
+  SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
   InitWindow(window_w, window_h, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);
 
   vec_init(&ant_vec);
-  for (int i = 0; i < 10; i++) {
-    vec_push(&ant_vec, create_ant(rand() % screen_w, rand() % screen_h, rand() % 360));
+  Texture2D ant_texture = LoadTexture("assets/ant.png");
+  SetTextureFilter(ant_texture, TEXTURE_FILTER_BILINEAR);
+
+  // Create ants
+  for (int i = 0; i < 500; i++) {
+    vec_push(&ant_vec, create_ant(rand() % SCREEN_W, rand() % SCREEN_H, &ant_texture, rand() % 360));
   }
-  offscreen = LoadRenderTexture(screen_w, screen_h);
+
+  offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
 
   resize_window(window_w, window_h);
 
@@ -45,14 +55,15 @@ int main() {
   int i = 0;
   vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
   vec_deinit(&ant_vec);
+  UnloadTexture(ant_texture);
   CloseWindow();
 
   return 0;
 }
 
 void update() {
-  double fixed_delta = 1.0 / (double)tickrate;
-  double scaled_delta = fixed_delta / (double)tick_speed;
+  double fixed_delta = 1.0 / (double)TICK_RATE;
+  double scaled_delta = fixed_delta / tick_speed;
   static bool first = false;
   static double last_time = 0.0;
   static double simulation_time = 0.0;
@@ -64,7 +75,7 @@ void update() {
     first = true;
   }
   double current_time = GetTime();
-  double delta_time = fmin(current_time - last_time, max_delta_time);
+  double delta_time = fmin(current_time - last_time, MAX_DELTA);
 
   last_time = current_time;
   simulation_time += delta_time;
@@ -90,12 +101,13 @@ void render() {
   ClearBackground(BROWN);
 
   // Draw center lines
-  DrawLine(screen_w / 2, 0, screen_w / 2, screen_h, DARKGRAY);
-  DrawLine(0, screen_h / 2, screen_w, screen_h / 2, DARKGRAY);
+  DrawLine(SCREEN_W / 2, 0, SCREEN_W / 2, SCREEN_H, DARKGRAY);
+  DrawLine(0, SCREEN_H / 2, SCREEN_W, SCREEN_H / 2, DARKGRAY);
 
   // Draw ants
   ant_t *ant = NULL;
   int i = 0;
+
   vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
 
   DrawFPS(0, 0);
@@ -109,15 +121,15 @@ void resize_window(int w, int h) {
   window_w = w;
   window_h = h;
 
-  letterbox.width = screen_w;
-  letterbox.height = screen_h;
+  letterbox.width = SCREEN_W;
+  letterbox.height = SCREEN_H;
 
-  float ratio_x = window_w / (float)screen_w;
-  float ratio_y = window_h / (float)screen_h;
+  float ratio_x = window_w / (float)SCREEN_W;
+  float ratio_y = window_h / (float)SCREEN_H;
   float ratio = fminf(ratio_x, ratio_y);
-  float offset_x = (window_w - ratio * screen_w) * 0.5f;
-  float offset_y = (window_h - ratio * screen_h) * 0.5f;
-  letterbox = (Rectangle){offset_x, offset_y, ratio * screen_w, ratio * screen_h};
+  float offset_x = (window_w - ratio * SCREEN_W) * 0.5f;
+  float offset_y = (window_h - ratio * SCREEN_H) * 0.5f;
+  letterbox = (Rectangle){offset_x, offset_y, ratio * SCREEN_W, ratio * SCREEN_H};
 }
 
 void render_present() {
@@ -126,7 +138,7 @@ void render_present() {
   BeginDrawing();
   ClearBackground(BROWN);
 
-  const Rectangle render_src = {0, 0, (float)screen_w, -(float)screen_h};
+  const Rectangle render_src = {0, 0, (float)SCREEN_W, -(float)SCREEN_H};
   const Vector2 render_origin = {0, 0};
   DrawTexturePro(offscreen.texture, render_src, letterbox, render_origin, 0.0f, WHITE);
   EndDrawing();

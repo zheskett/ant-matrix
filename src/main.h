@@ -2,14 +2,13 @@
 #include "entities/ant.h"
 #include "vec.h"
 
-#define TARGET_FPS 60
+#define TARGET_FPS 0
+#define TICK_RATE 60
+#define SCREEN_W 1920
+#define SCREEN_H 1080
+#define MAX_DELTA 0.25
 
 typedef vec_t(ant_t*) vec_ant_t;
-
-const int screen_w = 1920;
-const int screen_h = 1080;
-const int tickrate = 60;
-const double max_delta_time = 0.25;
 
 void fixed_update(double fixed_delta);
 void render(void);
