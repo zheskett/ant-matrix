@@ -16,6 +16,7 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
   ant->texture = texture;
   ant->pos = pos;
   ant->rotation = rotation;
+
   ant->state = ANT_IDLE;
 
   return ant;
@@ -37,7 +38,7 @@ void update_ant(ant_t* ant, float delta_time) {
   else if (ant->state == ANT_WALKING) {
     // Random chance to change direction
     if (rand() % 100 < 5) {
-      ant->rotation += (float)(rand() % 90 - 45);  // Change direction by -45 to +45 degrees
+      ant->rotation += (float)(rand() % 90 - 45);
     }
 
     ant->pos.x += ANT_SPEED * cosf(DEG2RAD * ant->rotation) * delta_time;
@@ -70,9 +71,10 @@ void draw_ant(ant_t* ant) {
     return;
   }
 
-  Vector2 center = {(ant->texture->width * ANT_SCALE) / 2.0f, (ant->texture->height * ANT_SCALE) / 2.0f};
-  Rectangle source = {0, 0, ant->texture->width, ant->texture->height};
-  Rectangle dest = {ant->pos.x, ant->pos.y, (ant->texture->width * ANT_SCALE), (ant->texture->height * ANT_SCALE)};
+  const Vector2 center = {(ant->texture->width * ANT_SCALE) / 2.0f, (ant->texture->height * ANT_SCALE) / 2.0f};
+  const Rectangle source = {0, 0, ant->texture->width, ant->texture->height};
+  const Rectangle dest = {ant->pos.x, ant->pos.y, (ant->texture->width * ANT_SCALE),
+                          (ant->texture->height * ANT_SCALE)};
   DrawTexturePro(*ant->texture, source, dest, center, ant->rotation, WHITE);
 
   Circle detector_circle = get_ant_detector_circle(ant);
@@ -95,6 +97,6 @@ Circle get_ant_detector_circle(ant_t* ant) {
       ant->pos.x + (ANT_DETECTOR_OFFSET * ANT_SCALE) * cosf(DEG2RAD * ant->rotation),
       ant->pos.y + (ANT_DETECTOR_OFFSET * ANT_SCALE) * sinf(DEG2RAD * ant->rotation),
   };
-  Circle circle = {circle_pos, ANT_DETECTOR_RADIUS * ANT_SCALE};
+  const Circle circle = {circle_pos, ANT_DETECTOR_RADIUS * ANT_SCALE};
   return circle;
 }

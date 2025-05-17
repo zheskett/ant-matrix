@@ -6,11 +6,21 @@
 #include <unistd.h>
 
 #include "entities/ant.h"
+#include "entities/food.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "util/definitions.h"
 #include "vec.h"
 
-// Initialization
+#pragma region initialization
+
+const int starting_ants = 10;
+const int starting_food = 4;
+const int food_radius = 30;
+const int food_detection_radius = 120;
+const int min_food_distance = 500;
+const int max_starting_food_amount = 80;
+const int min_starting_food_amount = 20;
 double tick_speed = 1.0;
 
 int window_w = 1920;
@@ -20,6 +30,9 @@ Vector2 spawn = {0, 0};
 RenderTexture2D offscreen;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 vec_ant_t ant_vec;
+vec_food_t food_vec;
+
+#pragma endregion
 
 int main() {
   srand(time(NULL));
@@ -34,8 +47,21 @@ int main() {
   SetTextureFilter(ant_texture, TEXTURE_FILTER_BILINEAR);
 
   // Create ants
-  for (int i = 0; i < 20; i++) {
+  for (int i = 0; i < starting_ants; i++) {
     vec_push(&ant_vec, create_ant(spawn, &ant_texture, rand() % 360));
+  }
+
+  // Create food away from ants
+  vec_init(&food_vec);
+  for (int i = 0; i < starting_food; i++) {
+    Vector2 food_pos = spawn;
+    while (Vector2Distance(spawn, food_pos) < min_food_distance) {
+      food_pos.x = rand() % SCREEN_W;
+      food_pos.y = rand() % SCREEN_H;
+    }
+    vec_push(&food_vec,
+             create_food(food_pos, food_radius, food_detection_radius,
+                         rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
   }
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
@@ -91,8 +117,10 @@ void update() {
 
 void fixed_update(double fixed_delta) {
   ant_t *ant = NULL;
+  food_t *food = NULL;
   int i = 0;
   vec_foreach(&ant_vec, ant, i) { update_ant(ant, fixed_delta); }
+  vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
 }
 
 void render() {
@@ -108,9 +136,11 @@ void render() {
 
   // Draw ants
   ant_t *ant = NULL;
+  food_t *food = NULL;
   int i = 0;
 
   vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
+  vec_foreach(&food_vec, food, i) { draw_food(food); }
 
   DrawFPS(0, 0);
 
