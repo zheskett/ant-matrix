@@ -28,8 +28,7 @@ int window_h = 1080;
 
 float zoom = 1.0f;
 Vector2 target = {WORLD_W / 2.0f, WORLD_H / 2.0f};
-
-input_t input_map = {(Vector2){0, 0}, 0};
+Vector2 prev_mouse_pos = {0, 0};
 Vector2 spawn = {0, 0};
 
 RenderTexture2D offscreen;
@@ -66,21 +65,63 @@ int main() {
 }
 
 void input() {
-  input_map.dir = (Vector2){0, 0};
-  if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
-    input_map.dir.x -= 1;
-  }
-  if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
-    input_map.dir.x += 1;
-  }
-  if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
-    input_map.dir.y -= 1;
-  }
-  if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
-    input_map.dir.y += 1;
+  Vector2 dir = (Vector2){0, 0};
+  Vector2 mouse_delta = (Vector2){0, 0};
+  float zoom_delta = 0;
+  Vector2 mouse_pos = GetMousePosition();
+  mouse_pos.x = Remap(mouse_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
+  mouse_pos.y = Remap(mouse_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
+  mouse_pos = Vector2Scale(mouse_pos, WORLD_SCALE / (WORLD_SCALE * zoom));
+
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    mouse_delta = Vector2Subtract(prev_mouse_pos, mouse_pos);
   }
 
-  input_map.zoom += GetMouseWheelMove();
+  if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+    dir.x -= 1;
+  }
+  if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
+    dir.x += 1;
+  }
+  if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
+    dir.y -= 1;
+  }
+  if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
+    dir.y += 1;
+  }
+
+  zoom_delta = GetMouseWheelMove();
+  if (zoom_delta != 0) {
+    Vector2 mouse_world_before_pos =
+        Vector2Add(mouse_pos, Vector2Subtract(target, Vector2Scale((Vector2){SCREEN_W / 2.0f, SCREEN_H / 2.0f},
+                                                                   WORLD_SCALE / (WORLD_SCALE * zoom))));
+
+    float prev_zoom = zoom;
+    zoom += zoom_delta * 0.1f;
+    zoom = fmaxf(1.0f / WORLD_SCALE, fminf(zoom, 2.0f));
+    zoom = roundf(zoom * 100.0f) / 100.0f;
+
+    Vector2 mouse_after_pos = GetMousePosition();
+    mouse_after_pos.x = Remap(mouse_after_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
+    mouse_after_pos.y = Remap(mouse_after_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
+    mouse_after_pos = Vector2Scale(mouse_after_pos, WORLD_SCALE / (WORLD_SCALE * zoom));
+    Vector2 mouse_world_after_pos =
+        Vector2Add(mouse_after_pos, Vector2Subtract(target, Vector2Scale((Vector2){SCREEN_W / 2.0f, SCREEN_H / 2.0f},
+                                                                         WORLD_SCALE / (WORLD_SCALE * zoom))));
+
+    Vector2 world_delta = Vector2Subtract(mouse_world_before_pos, mouse_world_after_pos);
+    target = Vector2Add(target, world_delta);
+  }
+
+  target = Vector2Add(target, Vector2Scale(dir, CAM_SPEED * GetFrameTime()));
+  target = Vector2Add(target, mouse_delta);
+  // Clamp target to world bounds with respect to zoom
+  target.x = fmaxf((SCREEN_W / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom)),
+                   fminf(WORLD_W - ((SCREEN_W / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom))), target.x));
+  target.y = fmaxf((SCREEN_H / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom)),
+                   fminf(WORLD_H - ((SCREEN_H / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom))), target.y));
+
+  prev_mouse_pos = mouse_pos;
 }
 
 void update() {
@@ -107,19 +148,6 @@ void update() {
 
     fixed_update(fixed_delta);
   }
-
-  target.x += input_map.dir.x * CAM_SPEED * delta_time;
-  target.y += input_map.dir.y * CAM_SPEED * delta_time;
-  zoom += input_map.zoom * 0.1f;
-  input_map.zoom = 0;
-  zoom = fmaxf(1.0f / WORLD_SCALE, fminf(zoom, 2.0f));
-  zoom = roundf(zoom * 100.0f) / 100.0f;
-
-  // Clamp target to world bounds with respect to zoom
-  target.x = fmaxf((SCREEN_W / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom)),
-                   fminf(WORLD_W - ((SCREEN_W / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom))), target.x));
-  target.y = fmaxf((SCREEN_H / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom)),
-                   fminf(WORLD_H - ((SCREEN_H / 2.0f) * (WORLD_SCALE / (WORLD_SCALE * zoom))), target.y));
 }
 
 void fixed_update(double fixed_delta) {
@@ -164,7 +192,8 @@ void initialize() {
   srand(time(NULL));
   spawn = (Vector2){rand() % WORLD_W, rand() % WORLD_H};
 
-  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI);
+  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE |
+                 FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(window_w, window_h, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);
 

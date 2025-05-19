@@ -5,7 +5,7 @@
 #include "entities/food.h"
 #include "vec.h"
 
-#define TARGET_FPS 60
+#define TARGET_FPS 0
 #define TICK_RATE 60
 #define SCREEN_W 1920
 #define SCREEN_H 1080
@@ -16,11 +16,6 @@
 #define CAM_SPEED 1000
 
 #define MAX_DELTA 0.25
-
-typedef struct {
-  Vector2 dir;
-  float zoom;
-} input_t;
 
 typedef vec_t(ant_t*) vec_ant_t;
 typedef vec_t(food_t*) vec_food_t;
