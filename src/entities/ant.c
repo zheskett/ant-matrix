@@ -50,17 +50,17 @@ void update_ant(ant_t* ant, float delta_time) {
     }
 
     // Check for boundary collisions
-    if (ant->pos.x < 0 || ant->pos.x > SCREEN_W || ant->pos.y < 0 || ant->pos.y > SCREEN_H) {
+    if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
       ant->rotation += 180.0f;  // Reverse direction
       if (ant->pos.x < 0) {
         ant->pos.x = 0;
-      } else if (ant->pos.x > SCREEN_W) {
-        ant->pos.x = SCREEN_W;
+      } else if (ant->pos.x > WORLD_W) {
+        ant->pos.x = WORLD_W;
       }
       if (ant->pos.y < 0) {
         ant->pos.y = 0;
-      } else if (ant->pos.y > SCREEN_H) {
-        ant->pos.y = SCREEN_H;
+      } else if (ant->pos.y > WORLD_H) {
+        ant->pos.y = WORLD_H;
       }
     }
   }
