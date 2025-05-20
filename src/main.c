@@ -14,10 +14,10 @@
 
 #pragma region setup
 
-const int starting_ants = 10;
+const int starting_ants = 1000;
 const int starting_food = 4;
-const int food_radius = 30;
-const int food_detection_radius = 120;
+const int food_radius = 40;
+const int food_detection_radius = 150;
 const int min_food_distance = 500;
 const int max_starting_food_amount = 80;
 const int min_starting_food_amount = 20;
@@ -54,11 +54,17 @@ int main() {
   }
 
   UnloadRenderTexture(offscreen);
-  ant_t *ant = NULL;
+  UnloadTexture(ant_texture);
+
   int i = 0;
+  ant_t *ant = NULL;
   vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
   vec_deinit(&ant_vec);
-  UnloadTexture(ant_texture);
+
+  food_t *food = NULL;
+  vec_foreach(&food_vec, food, i) { destroy_food(food); }
+  vec_deinit(&food_vec);
+
   CloseWindow();
 
   return 0;
@@ -178,8 +184,8 @@ void render() {
   food_t *food = NULL;
   int i = 0;
 
-  vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
   vec_foreach(&food_vec, food, i) { draw_food(food); }
+  vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
 
   // Draw in top left corner on screen regardless of camera
   EndMode2D();
@@ -220,7 +226,6 @@ void initialize() {
   }
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
-
   resize_window(window_w, window_h);
 }
 

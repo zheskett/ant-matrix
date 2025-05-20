@@ -1,4 +1,6 @@
 #pragma once
+#include <stdbool.h>
+
 #include "raylib.h"
 #include "util/definitions.h"
 
@@ -17,6 +19,7 @@ typedef struct {
   Vector2 pos;
   float rotation;
   ant_state_t state;
+  bool has_food;
 } ant_t;
 
 /**

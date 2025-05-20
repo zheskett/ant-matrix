@@ -20,6 +20,9 @@
 typedef vec_t(ant_t*) vec_ant_t;
 typedef vec_t(food_t*) vec_food_t;
 
+extern vec_ant_t ant_vec;
+extern vec_food_t food_vec;
+
 void fixed_update(double fixed_delta);
 void render(void);
 void render_present(void);
