@@ -47,3 +47,11 @@ void destroy_food(food_t* food) {
 
   free(food);
 }
+
+void grab_food(food_t* food) {
+  if (!food) {
+    return;
+  }
+
+  food->amount--;
+}

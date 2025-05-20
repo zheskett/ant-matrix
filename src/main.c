@@ -15,12 +15,12 @@
 #pragma region setup
 
 const int starting_ants = 1000;
-const int starting_food = 4;
-const int food_radius = 40;
-const int food_detection_radius = 150;
+const int starting_food = 10;
+const int food_radius = 50;
+const int food_detection_radius = 500;
 const int min_food_distance = 500;
-const int max_starting_food_amount = 80;
-const int min_starting_food_amount = 20;
+const int max_starting_food_amount = 30;
+const int min_starting_food_amount = 10;
 double tick_speed = 1;
 
 int window_w = 1920;
@@ -29,7 +29,7 @@ int window_h = 1080;
 float zoom = 1.0f;
 Vector2 target = {WORLD_W / 2.0f, WORLD_H / 2.0f};
 Vector2 prev_mouse_pos = {0, 0};
-Vector2 spawn = {0, 0};
+const Vector2 spawn = {WORLD_W / 2, WORLD_H / 2};
 
 RenderTexture2D offscreen;
 Texture2D ant_texture;
@@ -111,11 +111,11 @@ void input() {
     mouse_after_pos.x = Remap(mouse_after_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
     mouse_after_pos.y = Remap(mouse_after_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
     mouse_after_pos = Vector2Scale(mouse_after_pos, WORLD_SCALE / (WORLD_SCALE * zoom));
-    Vector2 mouse_world_after_pos =
+    const Vector2 mouse_world_after_pos =
         Vector2Add(mouse_after_pos, Vector2Subtract(target, Vector2Scale((Vector2){SCREEN_W / 2.0f, SCREEN_H / 2.0f},
                                                                          WORLD_SCALE / (WORLD_SCALE * zoom))));
 
-    Vector2 world_delta = Vector2Subtract(mouse_world_before_pos, mouse_world_after_pos);
+    const Vector2 world_delta = Vector2Subtract(mouse_world_before_pos, mouse_world_after_pos);
     target = Vector2Add(target, world_delta);
   }
 
@@ -131,8 +131,8 @@ void input() {
 }
 
 void update() {
-  double fixed_delta = 1.0 / (double)TICK_RATE;
-  double scaled_delta = fixed_delta / tick_speed;
+  const double fixed_delta = 1.0 / (double)TICK_RATE;
+  const double scaled_delta = fixed_delta / tick_speed;
   static bool first = false;
   static double last_time = 0.0;
   static double simulation_time = 0.0;
@@ -179,11 +179,11 @@ void render() {
   DrawLine(WORLD_W / 2, 0, WORLD_W / 2, WORLD_H, DARKGRAY);
   DrawLine(0, WORLD_H / 2, WORLD_W, WORLD_H / 2, DARKGRAY);
 
-  // Draw ants
+  DrawCircleV(spawn, ANT_SPAWN_RADIUS, DARKBLUE);
+
   ant_t *ant = NULL;
   food_t *food = NULL;
   int i = 0;
-
   vec_foreach(&food_vec, food, i) { draw_food(food); }
   vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
 
@@ -196,7 +196,6 @@ void render() {
 
 void initialize() {
   srand(time(NULL));
-  spawn = (Vector2){rand() % WORLD_W, rand() % WORLD_H};
 
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE |
                  FLAG_WINDOW_ALWAYS_RUN);
@@ -237,11 +236,11 @@ void resize_window(int w, int h) {
   letterbox.width = SCREEN_W;
   letterbox.height = SCREEN_H;
 
-  float ratio_x = window_w / (float)SCREEN_W;
-  float ratio_y = window_h / (float)SCREEN_H;
-  float ratio = fminf(ratio_x, ratio_y);
-  float offset_x = (window_w - ratio * SCREEN_W) * 0.5f;
-  float offset_y = (window_h - ratio * SCREEN_H) * 0.5f;
+  const float ratio_x = window_w / (float)SCREEN_W;
+  const float ratio_y = window_h / (float)SCREEN_H;
+  const float ratio = fminf(ratio_x, ratio_y);
+  const float offset_x = (window_w - ratio * SCREEN_W) * 0.5f;
+  const float offset_y = (window_h - ratio * SCREEN_H) * 0.5f;
   letterbox = (Rectangle){offset_x, offset_y, ratio * SCREEN_W, ratio * SCREEN_H};
 }
 

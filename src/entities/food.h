@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "vec.h"
 
 typedef struct {
   Vector2 pos;
@@ -7,6 +8,8 @@ typedef struct {
   float detection_radius;
   int amount;
 } food_t;
+
+typedef vec_t(food_t*) vec_food_t;
 
 /**
  * @brief Create a food object
@@ -40,3 +43,10 @@ void draw_food(food_t* food);
  * @param food Pointer to the food object
  */
 void destroy_food(food_t* food);
+
+/**
+ * @brief Take some food from food pile
+ *
+ * @param food Pointer to the food to take from
+ */
+void grab_food(food_t* food);

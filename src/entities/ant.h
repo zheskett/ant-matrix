@@ -1,26 +1,35 @@
 #pragma once
 #include <stdbool.h>
 
+#include "entities/food.h"
 #include "raylib.h"
 #include "util/definitions.h"
+#include "vec.h"
 
 #define ANT_SCALE 0.25f
 #define ANT_DETECTOR_RADIUS 50.0f
 #define ANT_DETECTOR_OFFSET 70.0f
 #define ANT_SPEED 100.0f
+#define ANT_SPAWN_RADIUS 50.0f
 
 typedef enum {
   ANT_IDLE,
   ANT_WALKING,
+  ANT_COLLECTING,
+  ANT_RETURNING,
 } ant_state_t;
 
 typedef struct {
   Texture2D* texture;
+  vec_food_t nearby_food;
+  Vector2 spawn;
   Vector2 pos;
-  float rotation;
   ant_state_t state;
+  float rotation;
   bool has_food;
 } ant_t;
+
+typedef vec_t(ant_t*) vec_ant_t;
 
 /**
  * @brief Create a new ant entity.
