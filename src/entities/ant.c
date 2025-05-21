@@ -7,7 +7,6 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "util/definitions.h"
-#include "vec.h"
 
 static void ant_logic(ant_t* ant, float delta_time);
 
@@ -17,15 +16,12 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
     return NULL;
   }
 
-  vec_init(&ant->nearby_food);
-  vec_reserve(&ant->nearby_food, 8);
-
   ant->texture = texture;
+  ant->nearest_food = NULL;
   ant->pos = pos;
   ant->spawn = pos;
   ant->rotation = rotation;
   ant->has_food = false;
-  ant->state = ANT_IDLE;
 
   return ant;
 }
@@ -35,12 +31,18 @@ void update_ant(ant_t* ant, float delta_time) {
     return;
   }
 
-  vec_clear(&ant->nearby_food);
+  ant->nearest_food = NULL;
+
   Circle detector_circle = get_ant_detector_circle(ant);
+  float nearest_distance = MAXFLOAT;
   for (int i = 0; i < food_vec.length; i++) {
     food_t* food = food_vec.data[i];
     if (CheckCollisionCircles(detector_circle.center, detector_circle.radius, food->pos, food->detection_radius)) {
-      vec_push(&ant->nearby_food, food);
+      const float distance = Vector2DistanceSqr(ant->pos, food->pos);
+      if (distance < nearest_distance) {
+        nearest_distance = distance;
+        ant->nearest_food = food;
+      }
     }
   }
 
@@ -56,7 +58,7 @@ void draw_ant(ant_t* ant) {
   const Rectangle source = {0, 0, ant->texture->width, ant->texture->height};
   const Rectangle dest = {ant->pos.x, ant->pos.y, (ant->texture->width * ANT_SCALE),
                           (ant->texture->height * ANT_SCALE)};
-  DrawTexturePro(*ant->texture, source, dest, center, ant->rotation, WHITE);
+  DrawTexturePro(*ant->texture, source, dest, center, ant->rotation * RAD2DEG, WHITE);
 
   const Circle detector_circle = get_ant_detector_circle(ant);
   DrawCircleV(detector_circle.center, detector_circle.radius,
@@ -65,7 +67,6 @@ void draw_ant(ant_t* ant) {
 
 void destroy_ant(ant_t* ant) {
   if (ant) {
-    vec_deinit(&ant->nearby_food);
     free(ant);
   }
 }
@@ -77,11 +78,75 @@ Circle get_ant_detector_circle(ant_t* ant) {
 
   // Circle center position, accounting for rotation, position at head of the ant
   Vector2 circle_pos = {
-      ant->pos.x + (ANT_DETECTOR_OFFSET * ANT_SCALE) * cosf(DEG2RAD * ant->rotation),
-      ant->pos.y + (ANT_DETECTOR_OFFSET * ANT_SCALE) * sinf(DEG2RAD * ant->rotation),
+      ant->pos.x + (ANT_DETECTOR_OFFSET * ANT_SCALE) * cosf(ant->rotation),
+      ant->pos.y + (ANT_DETECTOR_OFFSET * ANT_SCALE) * sinf(ant->rotation),
   };
   const Circle circle = {circle_pos, ANT_DETECTOR_RADIUS * ANT_SCALE};
   return circle;
+}
+
+void ant_set_angle(ant_t* ant, float angle) {
+  if (!ant) {
+    return;
+  }
+
+  ant->rotation = constrain_angle(angle);
+}
+
+bool ant_step(ant_t* ant, float delta_time) {
+  if (!ant) {
+    return false;
+  }
+
+  ant->pos.x += ANT_SPEED * cosf(ant->rotation) * delta_time;
+  ant->pos.y += ANT_SPEED * sinf(ant->rotation) * delta_time;
+
+  // Check for boundary collisions
+  if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
+    ant->pos.x = fmaxf(0, fminf(WORLD_W, ant->pos.x));
+    ant->pos.y = fmaxf(0, fminf(WORLD_H, ant->pos.y));
+    return false;
+  }
+
+  return true;
+}
+
+bool ant_gather(ant_t* ant) {
+  if (!ant) {
+    return false;
+  }
+
+  if (!ant->nearest_food || ant->has_food) {
+    return false;
+  }
+
+  // Check if the ant has reached the food
+  if (CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius)) {
+    grab_food(ant->nearest_food);
+    ant->has_food = true;
+    if (ant->nearest_food->amount <= 0) {
+      vec_remove(&food_vec, ant->nearest_food);
+      destroy_food(ant->nearest_food);
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+bool ant_drop(ant_t* ant) {
+  if (!ant) {
+    return false;
+  }
+
+  // Check if the ant has reached the spawn point
+  if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
+    ant->has_food = false;
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -95,118 +160,46 @@ static void ant_logic(ant_t* ant, float delta_time) {
     return;
   }
 
-  // Collect food
-  if (ant->state == ANT_RETURNING) {
-    if (!ant->has_food) {
-      ant->state = ANT_IDLE;
-    }
+  float face_direction = 0.0f;
+  ant_action_t action = ANT_STEP_ACTION;
 
+  // Collect food
+  if (ant->has_food) {
     // Move towards the spawn point
     Vector2 direction = Vector2Normalize(Vector2Subtract(ant->spawn, ant->pos));
-    ant->rotation = RAD2DEG * atan2f(direction.y, direction.x);
+    face_direction = constrain_angle(atan2f(direction.y, direction.x));
 
-    // keep rotation within 0-360 degrees
-    while (ant->rotation < 0) {
-      ant->rotation += 360;
-    }
-    while (ant->rotation >= 360) {
-      ant->rotation -= 360;
-    }
-
-    ant->pos = Vector2Add(ant->pos, Vector2Scale(direction, ANT_SPEED * delta_time));
-
-    // Check if the ant has reached the spawn point
-    Circle detector_circle = get_ant_detector_circle(ant);
-    if (CheckCollisionCircles(detector_circle.center, detector_circle.radius, ant->spawn, ANT_SPAWN_RADIUS)) {
-      ant->has_food = false;
-      ant->state = ANT_IDLE;
+    if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
+      action = ANT_DROP_ACTION;
     }
   }
 
   // Gather food
-  if (ant->nearby_food.length > 0 && !ant->has_food) {
-    ant->state = ANT_COLLECTING;
-
-    food_t* closest_food = NULL;
-    float closest_distance = MAXFLOAT;
-
-    food_t* itr = NULL;
-    int i = 0;
-    vec_foreach(&ant->nearby_food, itr, i) {
-      const float distance = Vector2DistanceSqr(itr->pos, ant->pos);
-      if (distance < closest_distance) {
-        closest_distance = distance;
-        closest_food = itr;
-      }
-    }
-
+  else if (ant->nearest_food) {
     // Move towards the closest food
-    Vector2 direction = Vector2Normalize(Vector2Subtract(closest_food->pos, ant->pos));
-    ant->rotation = RAD2DEG * atan2f(direction.y, direction.x);
+    Vector2 direction = Vector2Normalize(Vector2Subtract(ant->nearest_food->pos, ant->pos));
+    face_direction = constrain_angle(atan2f(direction.y, direction.x));
 
-    // keep rotation within 0-360 degrees
-    while (ant->rotation < 0) {
-      ant->rotation += 360;
-    }
-    while (ant->rotation >= 360) {
-      ant->rotation -= 360;
-    }
-
-    ant->pos = Vector2Add(ant->pos, Vector2Scale(direction, ANT_SPEED * delta_time));
-
-    // Check if the ant has reached the food
-    Circle detector_circle = get_ant_detector_circle(ant);
-    if (CheckCollisionCircles(detector_circle.center, detector_circle.radius, closest_food->pos,
-                              closest_food->radius)) {
-      grab_food(closest_food);
-      ant->has_food = true;
-      if (closest_food->amount <= 0) {
-        vec_remove(&food_vec, closest_food);
-        vec_remove(&ant->nearby_food, closest_food);
-        destroy_food(closest_food);
-      }
-      ant->state = ANT_RETURNING;
-    }
-
-  } else if (ant->state == ANT_COLLECTING) {
-    ant->state = ANT_IDLE;
-  }
-
-  if (ant->state == ANT_IDLE) {
-    // Random chance to change state
-    if (rand() % 100 < 4) {
-      ant->state = ANT_WALKING;
-      ant->rotation = (float)(rand() % 360);
+    if (CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius)) {
+      action = ANT_GATHER_ACTION;
     }
   }
 
-  else if (ant->state == ANT_WALKING) {
+  else {
     // Random chance to change direction
     if (rand() % 100 < 5) {
-      ant->rotation += (float)(rand() % 90 - 45);
-    }
-
-    ant->pos.x += ANT_SPEED * cosf(DEG2RAD * ant->rotation) * delta_time;
-    ant->pos.y += ANT_SPEED * sinf(DEG2RAD * ant->rotation) * delta_time;
-
-    // Random chance to change state
-    if (rand() % 100 < 1) {
-      ant->state = ANT_IDLE;
+      face_direction = constrain_angle(ant->rotation + (float)(rand() % 90 - 45) * DEG2RAD);
+    } else {
+      face_direction = ant->rotation;
     }
   }
 
-  // Check for boundary collisions
-  if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
-    ant->rotation += 180.0f;  // Reverse direction
-    if (ant->pos.x < 0) {
-      ant->pos.x = 0;
-    } else if (ant->pos.x > WORLD_W) {
-      ant->pos.x = WORLD_W;
-    }
-    if (ant->pos.y < 0) {
-      ant->pos.y = 0;
-    } else if (ant->pos.y > WORLD_H) {
-      ant->pos.y = WORLD_H;
-    }
+  ant_set_angle(ant, face_direction);
+  if (action == ANT_STEP_ACTION) {
+    ant_step(ant, delta_time);
+  } else if (action == ANT_GATHER_ACTION) {
+    ant_gather(ant);
+  } else if (action == ANT_DROP_ACTION) {
+    ant_drop(ant);
   }
 }

@@ -13,18 +13,16 @@
 #define ANT_SPAWN_RADIUS 50.0f
 
 typedef enum {
-  ANT_IDLE,
-  ANT_WALKING,
-  ANT_COLLECTING,
-  ANT_RETURNING,
-} ant_state_t;
+  ANT_STEP_ACTION,
+  ANT_GATHER_ACTION,
+  ANT_DROP_ACTION,
+} ant_action_t;
 
 typedef struct {
   Texture2D* texture;
-  vec_food_t nearby_food;
+  food_t* nearest_food;
   Vector2 spawn;
   Vector2 pos;
-  ant_state_t state;
   float rotation;
   bool has_food;
 } ant_t;
@@ -36,7 +34,7 @@ typedef vec_t(ant_t*) vec_ant_t;
  *
  * @param pos The initial position of the ant.
  * @param texture The texture of the ant.
- * @param rotation The rotation of the ant in degrees.
+ * @param rotation The rotation of the ant in radians.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
 ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation);
@@ -70,3 +68,41 @@ void destroy_ant(ant_t* ant);
  * @return The circle representing the ant's detector.
  */
 Circle get_ant_detector_circle(ant_t* ant);
+
+// Behavior functions
+
+/**
+ * @brief Move the ant towards the specified angle.
+ *
+ * @param ant The ant entity to move.
+ * @param angle The angle to move towards in radians.
+ */
+void ant_set_angle(ant_t* ant, float angle);
+
+/**
+ * @brief Move the ant in the faced direction.
+ *
+ * @param ant The ant entity to move.
+ * @param pos The position to move towards.
+ *
+ * @return true if the ant moved, false otherwise.
+ */
+bool ant_step(ant_t* ant, float delta_time);
+
+/**
+ * @brief Gather food.
+ *
+ * @param ant The ant entity to gather food.
+ *
+ * @return true if the ant gathered food, false otherwise.
+ */
+bool ant_gather(ant_t* ant);
+
+/**
+ * @brief Drop food off.
+ *
+ * @param ant The ant entity to drop food.
+ *
+ * @return true if the ant dropped food, false otherwise.
+ */
+bool ant_drop(ant_t* ant);

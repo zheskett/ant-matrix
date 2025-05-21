@@ -14,6 +14,9 @@
 
 #pragma region setup
 
+vec_ant_t ant_vec;
+vec_food_t food_vec;
+
 const int starting_ants = 1000;
 const int starting_food = 10;
 const int food_radius = 50;
@@ -21,7 +24,7 @@ const int food_detection_radius = 500;
 const int min_food_distance = 500;
 const int max_starting_food_amount = 30;
 const int min_starting_food_amount = 10;
-double tick_speed = 1;
+double tick_speed = 1.0;
 
 int window_w = 1920;
 int window_h = 1080;
@@ -34,12 +37,12 @@ const Vector2 spawn = {WORLD_W / 2, WORLD_H / 2};
 RenderTexture2D offscreen;
 Texture2D ant_texture;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
-vec_ant_t ant_vec;
-vec_food_t food_vec;
 
 #pragma endregion
 
 int main() {
+  printf("%.10f, %.10f\n", 2.0f * PI, TAU);
+
   initialize();
 
   while (!WindowShouldClose()) {
@@ -208,7 +211,7 @@ void initialize() {
 
   // Create ants
   for (int i = 0; i < starting_ants; i++) {
-    vec_push(&ant_vec, create_ant(spawn, &ant_texture, rand() % 360));
+    vec_push(&ant_vec, create_ant(spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
   }
 
   // Create food away from ants
