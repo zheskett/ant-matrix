@@ -178,10 +178,6 @@ void render() {
   BeginMode2D(cam);
   ClearBackground(BROWN);
 
-  // Draw center lines
-  DrawLine(WORLD_W / 2, 0, WORLD_W / 2, WORLD_H, DARKGRAY);
-  DrawLine(0, WORLD_H / 2, WORLD_W, WORLD_H / 2, DARKGRAY);
-
   DrawCircleV(spawn, ANT_SPAWN_RADIUS, DARKBLUE);
 
   ant_t *ant = NULL;
@@ -200,14 +196,12 @@ void render() {
 void initialize() {
   srand(time(NULL));
 
-  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE |
-                 FLAG_WINDOW_ALWAYS_RUN);
+  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(window_w, window_h, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);
 
   vec_init(&ant_vec);
   ant_texture = LoadTexture("assets/ant.png");
-  SetTextureFilter(ant_texture, TEXTURE_FILTER_BILINEAR);
 
   // Create ants
   for (int i = 0; i < starting_ants; i++) {
@@ -228,6 +222,7 @@ void initialize() {
   }
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
+  SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
   resize_window(window_w, window_h);
 }
 
