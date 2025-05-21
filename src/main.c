@@ -17,7 +17,7 @@
 vec_ant_t ant_vec;
 vec_food_t food_vec;
 
-const int starting_ants = 1000;
+const int starting_ants = 100;
 const int starting_food = 10;
 const int food_radius = 50;
 const int food_detection_radius = 500;

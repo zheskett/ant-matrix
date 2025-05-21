@@ -8,7 +8,7 @@
 #include "raymath.h"
 #include "util/definitions.h"
 
-static void ant_logic(ant_t* ant, float delta_time);
+static ant_logic_t ant_decision(ant_t* ant, float delta_time);
 
 ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
@@ -22,6 +22,7 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
   ant->spawn = pos;
   ant->rotation = rotation;
   ant->has_food = false;
+  ant->is_coliding = false;
 
   return ant;
 }
@@ -46,7 +47,20 @@ void update_ant(ant_t* ant, float delta_time) {
     }
   }
 
-  ant_logic(ant, delta_time);
+  ant_logic_t logic = ant_decision(ant, delta_time);
+
+  ant_set_angle(ant, logic.angle);
+  switch (logic.action) {
+    case ANT_STEP_ACTION:
+      ant_step(ant, delta_time);
+      break;
+    case ANT_GATHER_ACTION:
+      ant_gather(ant);
+      break;
+    case ANT_DROP_ACTION:
+      ant_drop(ant);
+      break;
+  }
 }
 
 void draw_ant(ant_t* ant) {
@@ -105,9 +119,12 @@ bool ant_step(ant_t* ant, float delta_time) {
   if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
     ant->pos.x = fmaxf(0, fminf(WORLD_W, ant->pos.x));
     ant->pos.y = fmaxf(0, fminf(WORLD_H, ant->pos.y));
+
+    ant->is_coliding = true;
     return false;
   }
 
+  ant->is_coliding = false;
   return true;
 }
 
@@ -155,9 +172,9 @@ bool ant_drop(ant_t* ant) {
  * @param ant Pointer to the ant entity.
  * @param delta_time Time since the last update.
  */
-static void ant_logic(ant_t* ant, float delta_time) {
+static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
   if (!ant) {
-    return;
+    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
   }
 
   float face_direction = 0.0f;
@@ -171,6 +188,7 @@ static void ant_logic(ant_t* ant, float delta_time) {
 
     if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
       action = ANT_DROP_ACTION;
+      face_direction = (rand() % 360) * DEG2RAD;
     }
   }
 
@@ -186,20 +204,17 @@ static void ant_logic(ant_t* ant, float delta_time) {
   }
 
   else {
+    if (ant->is_coliding) {
+      face_direction = constrain_angle(ant->rotation + PI);
+    }
+
     // Random chance to change direction
-    if (rand() % 100 < 5) {
+    else if (rand() % 100 < 5) {
       face_direction = constrain_angle(ant->rotation + (float)(rand() % 90 - 45) * DEG2RAD);
     } else {
       face_direction = ant->rotation;
     }
   }
 
-  ant_set_angle(ant, face_direction);
-  if (action == ANT_STEP_ACTION) {
-    ant_step(ant, delta_time);
-  } else if (action == ANT_GATHER_ACTION) {
-    ant_gather(ant);
-  } else if (action == ANT_DROP_ACTION) {
-    ant_drop(ant);
-  }
+  return (ant_logic_t){action, face_direction};
 }

@@ -11,12 +11,16 @@
 #define ANT_DETECTOR_OFFSET 70.0f
 #define ANT_SPEED 100.0f
 #define ANT_SPAWN_RADIUS 50.0f
-
 typedef enum {
   ANT_STEP_ACTION,
   ANT_GATHER_ACTION,
   ANT_DROP_ACTION,
 } ant_action_t;
+
+typedef struct {
+  ant_action_t action;
+  float angle;
+} ant_logic_t;
 
 typedef struct {
   Texture2D* texture;
@@ -25,6 +29,7 @@ typedef struct {
   Vector2 pos;
   float rotation;
   bool has_food;
+  bool is_coliding;
 } ant_t;
 
 typedef vec_t(ant_t*) vec_ant_t;
