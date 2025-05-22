@@ -7,12 +7,35 @@
 
 #include "entities/ant.h"
 #include "entities/food.h"
+#include "genann.h"
+#include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "util/definitions.h"
 #include "vec.h"
 
 #pragma region setup
+
+/**
+ * INPUT:
+ * 0: rotation cos
+ * 1: rotation sin
+ * 2: spawn x
+ * 3: spawn y
+ * 4: food x
+ * 5: food y
+ * 6: near food
+ * 7: has food
+ * 8: is colliding
+ *
+ * OUTPUT:
+ * 0: angle cos
+ * 1: angle sin
+ * 2: step
+ * 3: gather
+ * 4: drop
+ */
+genann *ant_ann = NULL;
 
 vec_ant_t ant_vec;
 vec_food_t food_vec;
@@ -41,8 +64,6 @@ Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 #pragma endregion
 
 int main() {
-  printf("%.10f, %.10f\n", 2.0f * PI, TAU);
-
   initialize();
 
   while (!WindowShouldClose()) {
@@ -163,7 +184,37 @@ void fixed_update(double fixed_delta) {
   ant_t *ant = NULL;
   food_t *food = NULL;
   int i = 0;
-  vec_foreach(&ant_vec, ant, i) { update_ant(ant, fixed_delta); }
+  vec_foreach(&ant_vec, ant, i) {
+    ant_update_nearest_food(ant);
+    ant_logic_t logic = update_ant(ant, fixed_delta);
+
+    // Update the neural network
+    double inputs[ANT_ANN_INPUTS] = {0};
+    inputs[0] = cosf(ant->rotation);
+    inputs[1] = sinf(ant->rotation);
+
+    inputs[2] = (spawn.x - ant->pos.x) / (double)WORLD_W;
+    inputs[3] = (spawn.y - ant->pos.y) / (double)WORLD_H;
+    if (ant->nearest_food) {
+      inputs[4] = (ant->nearest_food->pos.x - ant->pos.x) / (double)WORLD_W;
+      inputs[5] = (ant->nearest_food->pos.y - ant->pos.y) / (double)WORLD_H;
+    } else {
+      inputs[4] = 0.0;
+      inputs[5] = 0.0;
+    }
+    inputs[6] = ant->nearest_food ? 1.0 : 0.0;
+    inputs[7] = ant->has_food ? 1.0 : 0.0;
+    inputs[8] = ant->is_coliding ? 1.0 : 0.0;
+
+    double outputs[ANT_ANN_OUTPUTS] = {0};
+    outputs[0] = cosf(logic.angle);
+    outputs[1] = sinf(logic.angle);
+    outputs[2] = logic.action == ANT_STEP_ACTION ? 1.0 : 0.0;
+    outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.0;
+    outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
+
+    genann_train(ant_ann, inputs, outputs, LEARN_RATE);
+  }
   vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
 }
 
@@ -196,6 +247,10 @@ void render() {
 void initialize() {
   srand(time(NULL));
 
+  // Init genann
+  ant_ann = genann_init(ANT_ANN_INPUTS, (int)(ANT_ANN_INPUTS * 1.5), (int)(ANT_ANN_OUTPUTS * 1.5), ANT_ANN_OUTPUTS);
+
+  // Initialize raylib
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(window_w, window_h, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);

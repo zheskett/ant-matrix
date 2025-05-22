@@ -5,8 +5,10 @@
 #include "entities/food.h"
 #include "util/definitions.h"
 
+#define LEARN_RATE 0.01
+
 #define TARGET_FPS 0
-#define TICK_RATE 60
+#define TICK_RATE 30
 #define SCREEN_W 1920
 #define SCREEN_H 1080
 #define WORLD_SCALE 4.0f

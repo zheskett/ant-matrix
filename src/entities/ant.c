@@ -27,7 +27,7 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
   return ant;
 }
 
-void update_ant(ant_t* ant, float delta_time) {
+void ant_update_nearest_food(ant_t* ant) {
   if (!ant) {
     return;
   }
@@ -46,6 +46,12 @@ void update_ant(ant_t* ant, float delta_time) {
       }
     }
   }
+}
+
+ant_logic_t update_ant(ant_t* ant, float delta_time) {
+  if (!ant) {
+    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
+  }
 
   ant_logic_t logic = ant_decision(ant, delta_time);
 
@@ -61,6 +67,8 @@ void update_ant(ant_t* ant, float delta_time) {
       ant_drop(ant);
       break;
   }
+
+  return logic;
 }
 
 void draw_ant(ant_t* ant) {

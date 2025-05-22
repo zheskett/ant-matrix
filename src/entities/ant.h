@@ -11,6 +11,12 @@
 #define ANT_DETECTOR_OFFSET 70.0f
 #define ANT_SPEED 100.0f
 #define ANT_SPAWN_RADIUS 50.0f
+
+// 2 positions (spawn/food), 1 rotation, 1 has_food, 1 near food, 1 is_coliding
+#define ANT_ANN_INPUTS 9
+
+// 3 actions, 1 angle (sin/cos)
+#define ANT_ANN_OUTPUTS 5
 typedef enum {
   ANT_STEP_ACTION,
   ANT_GATHER_ACTION,
@@ -52,12 +58,19 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation);
 void draw_ant(ant_t* ant);
 
 /**
+ * @brief Update the ant's nearest food.
+ *
+ * @param ant The ant entity to update.
+ */
+void ant_update_nearest_food(ant_t* ant);
+
+/**
  * @brief Update the ant entity.
  *
  * @param ant The ant entity to update.
  * @param delta_time The time since the last update.
  */
-void update_ant(ant_t* ant, float delta_time);
+ant_logic_t update_ant(ant_t* ant, float delta_time);
 
 /**
  * @brief Destroy an ant entity and free its resources.
