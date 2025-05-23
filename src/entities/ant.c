@@ -48,12 +48,10 @@ void ant_update_nearest_food(ant_t* ant) {
   }
 }
 
-ant_logic_t update_ant(ant_t* ant, float delta_time) {
+void run_update_ant(ant_t* ant, ant_logic_t logic, float delta_time) {
   if (!ant) {
-    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
+    return;
   }
-
-  ant_logic_t logic = ant_decision(ant, delta_time);
 
   ant_set_angle(ant, logic.angle);
   switch (logic.action) {
@@ -67,6 +65,15 @@ ant_logic_t update_ant(ant_t* ant, float delta_time) {
       ant_drop(ant);
       break;
   }
+}
+
+ant_logic_t train_update_ant(ant_t* ant, float delta_time) {
+  if (!ant) {
+    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
+  }
+
+  ant_logic_t logic = ant_decision(ant, delta_time);
+  run_update_ant(ant, logic, delta_time);
 
   return logic;
 }

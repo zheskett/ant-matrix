@@ -8,11 +8,16 @@
 #include "entities/ant.h"
 #include "entities/food.h"
 #include "genann.h"
+
+#define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "util/definitions.h"
 #include "vec.h"
+
+static void reset_simulation(void);
+static void train_ants(double fixed_delta);
 
 #pragma region setup
 
@@ -20,13 +25,15 @@
  * INPUT:
  * 0: rotation cos
  * 1: rotation sin
- * 2: spawn x
- * 3: spawn y
- * 4: food x
- * 5: food y
- * 6: near food
- * 7: has food
- * 8: is colliding
+ * 2: spawn cos
+ * 3: spawn sin
+ * 4: spawn dist
+ * 5: food cos
+ * 6: food sin
+ * 7: food dist
+ * 9: near food
+ * 9: has food
+ * 10: is colliding
  *
  * OUTPUT:
  * 0: angle cos
@@ -36,6 +43,11 @@
  * 4: drop
  */
 genann *ant_ann = NULL;
+bool training = true;
+bool reset = false;
+bool auto_reset = true;
+bool warp = false;
+double start_time = 0.0;
 
 vec_ant_t ant_vec;
 vec_food_t food_vec;
@@ -47,7 +59,7 @@ const int food_detection_radius = 500;
 const int min_food_distance = 500;
 const int max_starting_food_amount = 30;
 const int min_starting_food_amount = 10;
-double tick_speed = 1.0;
+float tick_speed = 1.0;
 
 int window_w = 1920;
 int window_h = 1080;
@@ -88,6 +100,7 @@ int main() {
   food_t *food = NULL;
   vec_foreach(&food_vec, food, i) { destroy_food(food); }
   vec_deinit(&food_vec);
+  genann_free(ant_ann);
 
   CloseWindow();
 
@@ -162,9 +175,19 @@ void update() {
   static double simulation_time = 0.0;
   static double last_update_time = 0.0;
 
+  if (reset) {
+    reset = false;
+
+    first = false;
+    simulation_time = 0.0;
+
+    reset_simulation();
+  }
+
   if (!first) {
     last_time = GetTime();
     last_update_time = last_time;
+    start_time = last_time;
     first = true;
   }
   double current_time = GetTime();
@@ -178,43 +201,18 @@ void update() {
 
     fixed_update(fixed_delta);
   }
+
+  // Reset simulation every 2 minutes (scaled by tick speed)
+  if ((current_time - start_time) * tick_speed >= 120.0 && auto_reset) {
+    reset = true;
+  }
 }
 
 void fixed_update(double fixed_delta) {
-  ant_t *ant = NULL;
+  train_ants(fixed_delta);
+
   food_t *food = NULL;
   int i = 0;
-  vec_foreach(&ant_vec, ant, i) {
-    ant_update_nearest_food(ant);
-    ant_logic_t logic = update_ant(ant, fixed_delta);
-
-    // Update the neural network
-    double inputs[ANT_ANN_INPUTS] = {0};
-    inputs[0] = cosf(ant->rotation);
-    inputs[1] = sinf(ant->rotation);
-
-    inputs[2] = (spawn.x - ant->pos.x) / (double)WORLD_W;
-    inputs[3] = (spawn.y - ant->pos.y) / (double)WORLD_H;
-    if (ant->nearest_food) {
-      inputs[4] = (ant->nearest_food->pos.x - ant->pos.x) / (double)WORLD_W;
-      inputs[5] = (ant->nearest_food->pos.y - ant->pos.y) / (double)WORLD_H;
-    } else {
-      inputs[4] = 0.0;
-      inputs[5] = 0.0;
-    }
-    inputs[6] = ant->nearest_food ? 1.0 : 0.0;
-    inputs[7] = ant->has_food ? 1.0 : 0.0;
-    inputs[8] = ant->is_coliding ? 1.0 : 0.0;
-
-    double outputs[ANT_ANN_OUTPUTS] = {0};
-    outputs[0] = cosf(logic.angle);
-    outputs[1] = sinf(logic.angle);
-    outputs[2] = logic.action == ANT_STEP_ACTION ? 1.0 : 0.0;
-    outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.0;
-    outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
-
-    genann_train(ant_ann, inputs, outputs, LEARN_RATE);
-  }
   vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
 }
 
@@ -237,48 +235,64 @@ void render() {
   vec_foreach(&food_vec, food, i) { draw_food(food); }
   vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
 
-  // Draw in top left corner on screen regardless of camera
   EndMode2D();
 
   DrawFPS(0, 0);
+  GuiSlider((Rectangle){15, 20, 300, 20}, "0", "5", &tick_speed, 0.0f, 5.0f);
+  if (GuiButton((Rectangle){15, 60, 300, 20}, "Reset Speed")) {
+    warp = false;
+    tick_speed = 1.0f;
+  }
+
+  // Button to start runing the simulation from the network
+  if (GuiButton((Rectangle){SCREEN_W - 350, 10, 300, 20}, "Reset Simulation")) {
+    reset = true;
+  }
+
+  // Checkbox to start runing the simulation from the network
+  GuiCheckBox((Rectangle){SCREEN_W - 350, 40, 20, 20}, "Train", &training);
+
+  // Checkbox to enable/disable auto reset
+  GuiCheckBox((Rectangle){SCREEN_W - 350, 60, 20, 20}, "Auto Reset", &auto_reset);
+
+  // Checkbox to enable/disable warp
+  GuiCheckBox((Rectangle){SCREEN_W - 350, 80, 20, 20}, "Warp", &warp);
+  if (warp) {
+    tick_speed = WARP_SPEED;
+  }
+  GuiLabel((Rectangle){15, 40, 300, 20}, TextFormat("Tick Speed: %.2f", tick_speed));
+
   EndTextureMode();
 }
 
 void initialize() {
   srand(time(NULL));
-
   // Init genann
-  ant_ann = genann_init(ANT_ANN_INPUTS, (int)(ANT_ANN_INPUTS * 1.5), (int)(ANT_ANN_OUTPUTS * 1.5), ANT_ANN_OUTPUTS);
+  ant_ann = genann_init(ANN_INPUTS, 3, (int)(ANN_INPUTS * 2), ANN_OUTPUTS);
 
   // Initialize raylib
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN);
   InitWindow(window_w, window_h, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);
 
-  vec_init(&ant_vec);
   ant_texture = LoadTexture("assets/ant.png");
 
-  // Create ants
-  for (int i = 0; i < starting_ants; i++) {
-    vec_push(&ant_vec, create_ant(spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
-  }
-
-  // Create food away from ants
+  vec_init(&ant_vec);
   vec_init(&food_vec);
-  for (int i = 0; i < starting_food; i++) {
-    Vector2 food_pos = spawn;
-    while (Vector2Distance(spawn, food_pos) < min_food_distance) {
-      food_pos.x = rand() % WORLD_W;
-      food_pos.y = rand() % WORLD_H;
-    }
-    vec_push(&food_vec,
-             create_food(food_pos, food_radius, food_detection_radius,
-                         rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
-  }
+
+  reset_simulation();
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
   SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
   resize_window(window_w, window_h);
+
+  // Init GUI
+  GuiLoadStyleDefault();
+  GuiSetStyle(DEFAULT, TEXT_SIZE, 16);
+  GuiSetStyle(SLIDER, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
+  GuiSetStyle(LABEL, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
+  GuiSetStyle(CHECKBOX, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
+  GuiSetStyle(CHECKBOX, TEXT_COLOR_FOCUSED, 0xAAAAAA);
 }
 
 void resize_window(int w, int h) {
@@ -307,4 +321,140 @@ void render_present() {
   const Vector2 render_origin = {0, 0};
   DrawTexturePro(offscreen.texture, render_src, letterbox, render_origin, 0.0f, WHITE);
   EndDrawing();
+}
+
+static void train_ants(double fixed_delta) {
+  ant_t *ant = NULL;
+  int i = 0;
+
+  vec_foreach(&ant_vec, ant, i) {
+    ant_update_nearest_food(ant);
+    const double max_distance = hypotf(WORLD_W, WORLD_H);
+
+    // Update the neural network
+    double inputs[ANN_INPUTS] = {0};
+    inputs[0] = enc(cosf(ant->rotation));
+    inputs[1] = enc(sinf(ant->rotation));
+
+    const Vector2 spawn_vector = Vector2Subtract(ant->spawn, ant->pos);
+    const double spawn_vector_length = Vector2Length(spawn_vector);
+    inputs[2] = spawn_vector_length / max_distance;
+    inputs[3] = enc(spawn_vector.x / spawn_vector_length);
+    inputs[4] = enc(spawn_vector.y / spawn_vector_length);
+
+    if (ant->nearest_food) {
+      const Vector2 food_vector = Vector2Subtract(ant->nearest_food->pos, ant->pos);
+      const double food_vector_length = Vector2Length(food_vector);
+      inputs[5] = food_vector_length / max_distance;
+      inputs[6] = enc(food_vector.x / food_vector_length);
+      inputs[7] = enc(food_vector.y / food_vector_length);
+    } else {
+      inputs[5] = 0.0;
+      inputs[6] = 0.0;
+      inputs[7] = 0.0;
+    }
+    inputs[8] = ant->nearest_food ? 1.0 : 0.0;
+    inputs[9] = ant->has_food ? 1.0 : 0.0;
+    inputs[10] = ant->is_coliding ? 1.0 : 0.0;
+
+    if (training) {
+      ant_logic_t logic = train_update_ant(ant, fixed_delta);
+
+      double outputs[ANN_OUTPUTS] = {0};
+      outputs[0] = enc(cosf(logic.angle));
+      outputs[1] = enc(sinf(logic.angle));
+      outputs[2] = logic.action == ANT_STEP_ACTION ? 0.8 : 0.0;
+      outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.2;
+      outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.2;
+
+      const double *pred = genann_run(ant_ann, inputs);
+      double pred_norm[ANN_OUTPUTS] = {0};
+      memcpy(pred_norm, pred, sizeof(double) * ANN_OUTPUTS);
+
+      double len = hypot(dec(pred[0]), dec(pred[1]));
+      if (len > 0.0) {
+        pred_norm[0] = enc(dec(pred[0]) / len);
+        pred_norm[1] = enc(dec(pred[1]) / len);
+      } else {
+        pred_norm[0] = 0.0;
+        pred_norm[1] = 0.0;
+      }
+
+      genann_train(ant_ann, inputs, outputs, LEARN_RATE);
+      genann_train(ant_ann, inputs, pred_norm, LEARN_RATE * 0.1);
+
+      if (rand() % 100000 == 0) {
+        double delta = 0.0;
+        for (int i = 0; i < ANN_OUTPUTS; i++) {
+          delta += fabs(outputs[i] - pred[i]);
+        }
+        delta /= ANN_OUTPUTS;
+        printf("Delta: %.2f\n", delta);
+        printf("Inputs: ");
+        for (int j = 0; j < ANN_INPUTS; j++) {
+          printf("%.2f ", inputs[j]);
+        }
+        printf("\nOutputs: ");
+        for (int j = 0; j < ANN_OUTPUTS; j++) {
+          printf("%.2f ", outputs[j]);
+        }
+        printf("\nPred: ");
+        for (int j = 0; j < ANN_OUTPUTS; j++) {
+          printf("%.2f ", pred[j]);
+        }
+        printf("\n");
+      }
+
+    } else {
+      const double *pred = genann_run(ant_ann, inputs);
+      ant_logic_t logic = {0};
+      const double len = hypot(dec(pred[0]), dec(pred[1]));
+      if (len > 0.0) {
+        logic.angle = constrain_angle(atan2f(dec(pred[1]) / len, dec(pred[0]) / len));
+      } else {
+        logic.angle = 0.0;
+      }
+      int choice = 2;
+      logic.action = ANT_STEP_ACTION;
+      if (pred[3] > pred[choice]) {
+        logic.action = ANT_GATHER_ACTION;
+        choice = 3;
+      }
+      if (pred[4] > pred[choice]) {
+        logic.action = ANT_DROP_ACTION;
+        choice = 4;
+      }
+
+      run_update_ant(ant, logic, fixed_delta);
+    }
+  }
+}
+
+static void reset_simulation() {
+  ant_t *ant = NULL;
+  food_t *food = NULL;
+  int i = 0;
+
+  // Destroy all ants and food
+  vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
+  vec_foreach(&food_vec, food, i) { destroy_food(food); }
+  vec_clear(&ant_vec);
+  vec_clear(&food_vec);
+
+  // Create ants
+  for (int i = 0; i < starting_ants; i++) {
+    vec_push(&ant_vec, create_ant(spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
+  }
+
+  // Create food away from ants
+  for (int i = 0; i < starting_food; i++) {
+    Vector2 food_pos = spawn;
+    while (Vector2Distance(spawn, food_pos) < min_food_distance) {
+      food_pos.x = rand() % WORLD_W;
+      food_pos.y = rand() % WORLD_H;
+    }
+    vec_push(&food_vec,
+             create_food(food_pos, food_radius, food_detection_radius,
+                         rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
+  }
 }
