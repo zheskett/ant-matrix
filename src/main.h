@@ -5,9 +5,9 @@
 #include "entities/food.h"
 #include "util/definitions.h"
 
-#define LEARN_RATE 0.001
-// 2 positions (spawn/food), 1 rotation, 1 has_food, 1 near food, 1 is_coliding
-#define ANN_INPUTS 11
+#define LEARN_RATE 0.01
+// 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
+#define ANN_INPUTS 9
 
 // 3 actions, 1 angle (sin/cos)
 #define ANN_OUTPUTS 5
@@ -16,14 +16,14 @@
 #define TICK_RATE 30
 #define SCREEN_W 1920
 #define SCREEN_H 1080
-#define WORLD_SCALE 4.0f
+#define WORLD_SCALE 1.0f
 #define WORLD_W ((int)(SCREEN_W * WORLD_SCALE))
 #define WORLD_H ((int)(SCREEN_H * WORLD_SCALE))
 
 #define CAM_SPEED 1000
 
 #define MAX_DELTA 0.25
-#define WARP_SPEED 1000.0f
+#define WARP_SPEED 2000.0f
 
 extern vec_ant_t ant_vec;
 extern vec_food_t food_vec;

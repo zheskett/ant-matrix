@@ -23,21 +23,19 @@ static void train_ants(double fixed_delta);
 
 /**
  * INPUT:
- * 0: rotation cos
- * 1: rotation sin
- * 2: spawn cos
- * 3: spawn sin
- * 4: spawn dist
- * 5: food cos
- * 6: food sin
- * 7: food dist
- * 9: near food
- * 9: has food
- * 10: is colliding
+ * 0: spawn delta cos
+ * 1: spawn delta sin
+ * 2: spawn dist
+ * 3: food delta cos
+ * 4: food delta sin
+ * 5: food dist
+ * 6: near food
+ * 7: has food
+ * 8: is colliding
  *
  * OUTPUT:
- * 0: angle cos
- * 1: angle sin
+ * 0: angle delta cos
+ * 1: angle delta sin
  * 2: step
  * 3: gather
  * 4: drop
@@ -268,7 +266,7 @@ void render() {
 void initialize() {
   srand(time(NULL));
   // Init genann
-  ant_ann = genann_init(ANN_INPUTS, 3, (int)(ANN_INPUTS * 2), ANN_OUTPUTS);
+  ant_ann = genann_init(ANN_INPUTS, 1, 64, ANN_OUTPUTS);
 
   // Initialize raylib
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN);
@@ -333,57 +331,68 @@ static void train_ants(double fixed_delta) {
 
     // Update the neural network
     double inputs[ANN_INPUTS] = {0};
-    inputs[0] = enc(cosf(ant->rotation));
-    inputs[1] = enc(sinf(ant->rotation));
 
     const Vector2 spawn_vector = Vector2Subtract(ant->spawn, ant->pos);
     const double spawn_vector_length = Vector2Length(spawn_vector);
-    inputs[2] = spawn_vector_length / max_distance;
-    inputs[3] = enc(spawn_vector.x / spawn_vector_length);
-    inputs[4] = enc(spawn_vector.y / spawn_vector_length);
+    inputs[0] = spawn_vector_length / max_distance;
+    inputs[1] = enc(spawn_vector.x / spawn_vector_length);
+    inputs[2] = enc(spawn_vector.y / spawn_vector_length);
 
     if (ant->nearest_food) {
       const Vector2 food_vector = Vector2Subtract(ant->nearest_food->pos, ant->pos);
       const double food_vector_length = Vector2Length(food_vector);
-      inputs[5] = food_vector_length / max_distance;
-      inputs[6] = enc(food_vector.x / food_vector_length);
-      inputs[7] = enc(food_vector.y / food_vector_length);
+      inputs[3] = food_vector_length / max_distance;
+      inputs[4] = enc(food_vector.x / food_vector_length);
+      inputs[5] = enc(food_vector.y / food_vector_length);
     } else {
+      inputs[3] = 0.0;
+      inputs[4] = 0.0;
       inputs[5] = 0.0;
-      inputs[6] = 0.0;
-      inputs[7] = 0.0;
     }
-    inputs[8] = ant->nearest_food ? 1.0 : 0.0;
-    inputs[9] = ant->has_food ? 1.0 : 0.0;
-    inputs[10] = ant->is_coliding ? 1.0 : 0.0;
+    inputs[6] = ant->nearest_food ? 1.0 : 0.0;
+    inputs[7] = ant->has_food ? 1.0 : 0.0;
+    inputs[8] = ant->is_coliding ? 1.0 : 0.0;
 
     if (training) {
+      float prev_angle = ant->rotation;
       ant_logic_t logic = train_update_ant(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = enc(cosf(logic.angle));
-      outputs[1] = enc(sinf(logic.angle));
+      outputs[0] = enc(cosf(logic.angle - prev_angle));
+      outputs[1] = enc(sinf(logic.angle - prev_angle));
       outputs[2] = logic.action == ANT_STEP_ACTION ? 0.8 : 0.0;
       outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.2;
       outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.2;
 
-      const double *pred = genann_run(ant_ann, inputs);
-      double pred_norm[ANN_OUTPUTS] = {0};
-      memcpy(pred_norm, pred, sizeof(double) * ANN_OUTPUTS);
+      // const double *pred = genann_run(ant_ann, inputs);
+      // double pred_norm[ANN_OUTPUTS] = {0};
+      // memcpy(pred_norm, pred, sizeof(double) * ANN_OUTPUTS);
 
-      double len = hypot(dec(pred[0]), dec(pred[1]));
-      if (len > 0.0) {
-        pred_norm[0] = enc(dec(pred[0]) / len);
-        pred_norm[1] = enc(dec(pred[1]) / len);
-      } else {
-        pred_norm[0] = 0.0;
-        pred_norm[1] = 0.0;
+      // double len = hypot(dec(pred[0]), dec(pred[1]));
+      // if (len > 0.0) {
+      //   pred_norm[0] = enc(dec(pred[0]) / len);
+      //   pred_norm[1] = enc(dec(pred[1]) / len);
+      // } else {
+      //   pred_norm[0] = 0.0;
+      //   pred_norm[1] = 0.0;
+      // }
+
+      double learning_rate = LEARN_RATE;
+      if (logic.action != ANT_STEP_ACTION) {
+        learning_rate *= 2;
+      } else if (fabs(prev_angle - logic.angle) > 0.2) {
+        learning_rate *= 2;
+      } else if (ant->is_coliding) {
+        learning_rate *= 2;
       }
 
-      genann_train(ant_ann, inputs, outputs, LEARN_RATE);
-      genann_train(ant_ann, inputs, pred_norm, LEARN_RATE * 0.1);
+      if (learning_rate != LEARN_RATE || rand() % 100 == 0) {
+        genann_train(ant_ann, inputs, outputs, learning_rate);
+      }
+      // genann_train(ant_ann, inputs, pred_norm, LEARN_RATE * 0.1);
 
-      if (rand() % 100000 == 0) {
+      if (rand() % 1000000 == 0 || (learning_rate != LEARN_RATE && rand() % 5000 == 0)) {
+        const double *pred = genann_run(ant_ann, inputs);
         double delta = 0.0;
         for (int i = 0; i < ANN_OUTPUTS; i++) {
           delta += fabs(outputs[i] - pred[i]);
@@ -410,7 +419,7 @@ static void train_ants(double fixed_delta) {
       ant_logic_t logic = {0};
       const double len = hypot(dec(pred[0]), dec(pred[1]));
       if (len > 0.0) {
-        logic.angle = constrain_angle(atan2f(dec(pred[1]) / len, dec(pred[0]) / len));
+        logic.angle = constrain_angle(atan2f(dec(pred[1]) / len, dec(pred[0]) / len) + ant->rotation);
       } else {
         logic.angle = 0.0;
       }
@@ -426,6 +435,17 @@ static void train_ants(double fixed_delta) {
       }
 
       run_update_ant(ant, logic, fixed_delta);
+      if (rand() % 1000 == 0) {
+        printf("Inputs: ");
+        for (int j = 0; j < ANN_INPUTS; j++) {
+          printf("%.2f ", inputs[j]);
+        }
+        printf("\nPred: ");
+        for (int j = 0; j < ANN_OUTPUTS; j++) {
+          printf("%.2f ", pred[j]);
+        }
+        printf("\n");
+      }
     }
   }
 }

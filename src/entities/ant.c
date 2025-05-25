@@ -203,7 +203,7 @@ static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
 
     if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
       action = ANT_DROP_ACTION;
-      face_direction = (rand() % 360) * DEG2RAD;
+      face_direction = constrain_angle(ant->rotation + M_PI_2);
     }
   }
 
@@ -221,13 +221,8 @@ static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
   else {
     if (ant->is_coliding) {
       face_direction = constrain_angle(ant->rotation + PI);
-    }
-
-    // Random chance to change direction
-    else if (rand() % 100 < 5) {
-      face_direction = constrain_angle(ant->rotation + (float)(rand() % 90 - 45) * DEG2RAD);
     } else {
-      face_direction = ant->rotation;
+      face_direction = constrain_angle(ant->rotation + PI / 64 * delta_time);
     }
   }
 
