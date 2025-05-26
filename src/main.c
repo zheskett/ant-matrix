@@ -6,11 +6,9 @@
 #include <unistd.h>
 
 #include "genann.h"
-
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "util/gui.h"
 #include "vec.h"
 
 static void reset_simulation(void);
@@ -232,30 +230,36 @@ void render() {
 
   EndMode2D();
 
+  Vector2 mouse_pos = GetMousePosition();
+  mouse_pos.x = Remap(mouse_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
+  mouse_pos.y = Remap(mouse_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
+
   DrawFPS(0, 0);
-  GuiSlider((Rectangle){15, 20, 300, 20}, "0", "5", &tick_speed, 0.0f, 5.0f);
-  if (GuiButton((Rectangle){15, 60, 300, 20}, "Reset Speed")) {
+  if (gui_draw_button(mouse_pos, (Rectangle){10, 20, 300, 20}, "Reset Speed")) {
     warp = false;
     tick_speed = 1.0f;
   }
 
   // Button to start runing the simulation from the network
-  if (GuiButton((Rectangle){SCREEN_W - 350, 10, 300, 20}, "Reset Simulation")) {
+  if (gui_draw_button(mouse_pos, (Rectangle){SCREEN_W - 350, 10, 300, 20}, "Reset Simulation")) {
     reset = true;
   }
 
   // Checkbox to start runing the simulation from the network
-  GuiCheckBox((Rectangle){SCREEN_W - 350, 40, 20, 20}, "Train", &training);
+  training = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 40}, "Train", training);
 
   // Checkbox to enable/disable auto reset
-  GuiCheckBox((Rectangle){SCREEN_W - 350, 60, 20, 20}, "Auto Reset", &auto_reset);
+  auto_reset = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 65}, "Auto Reset", auto_reset);
 
   // Checkbox to enable/disable warp
-  GuiCheckBox((Rectangle){SCREEN_W - 350, 80, 20, 20}, "Warp", &warp);
+  warp = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 90}, "Warp", warp);
   if (warp) {
     tick_speed = WARP_SPEED;
+  } else if (tick_speed != 1.0f) {
+    tick_speed = 1.0f;
   }
-  GuiLabel((Rectangle){15, 40, 300, 20}, TextFormat("Tick Speed: %.2f", tick_speed));
+
+  gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.2f", tick_speed));
 
   EndTextureMode();
 }
@@ -284,14 +288,6 @@ void initialize() {
   // Position the window in the center of the screen
   SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
                     (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
-
-  // Init GUI
-  GuiLoadStyleDefault();
-  GuiSetStyle(DEFAULT, TEXT_SIZE, 16);
-  GuiSetStyle(SLIDER, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
-  GuiSetStyle(LABEL, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
-  GuiSetStyle(CHECKBOX, TEXT_COLOR_NORMAL, 0xFFFFFFFF);
-  GuiSetStyle(CHECKBOX, TEXT_COLOR_FOCUSED, 0xAAAAAA);
 }
 
 void resize_window(int w, int h) {
