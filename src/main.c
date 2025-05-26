@@ -40,7 +40,6 @@ bool training = true;
 bool reset = false;
 bool auto_reset = true;
 bool warp = false;
-double start_time = 0.0;
 
 vec_ant_t ant_vec;
 vec_food_t food_vec;
@@ -53,8 +52,7 @@ const int min_food_distance = 500;
 const int max_starting_food_amount = 30;
 const int min_starting_food_amount = 10;
 
-float tick_speed = 1.0;
-double render_time = 0.0;
+double tick_speed = 1.0;
 
 int window_w = 1920;
 int window_h = 1080;
@@ -71,9 +69,7 @@ Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 #pragma endregion
 
 int main() {
-  ;
   initialize();
-  double last_render_time = GetTime();
 
   while (!WindowShouldClose()) {
     if (IsWindowResized()) {
@@ -82,8 +78,6 @@ int main() {
 
     input();
     update();
-    render_time = GetTime() - last_render_time;
-    last_render_time = GetTime();
     render();
     render_present();
   }
@@ -168,18 +162,21 @@ void input() {
 
 void update() {
   if (warp) {
-    if (tick_speed <= 100.0f) {
+    if (tick_speed < 10.0) {
       tick_speed = WARP_SPEED;
     }
-    if (1 / render_time < 16) {
-      tick_speed /= 2.0f;
-    }
+
+    // Scale tick speed based on the render time to get 30 FPS
+    tick_speed = fmin(tick_speed * 1.5, fmax(tick_speed / 1.5, tick_speed / (30.0 * GetFrameTime())));
+
+    tick_speed = fmin(WARP_SPEED * 10, tick_speed);
   } else {
     tick_speed = 1.0f;
   }
 
   const double fixed_delta = 1.0 / (double)TICK_RATE;
   const double scaled_delta = fixed_delta / tick_speed;
+  static double simulated_time = 0.0;
   static bool first = false;
   static double last_time = 0.0;
   static double simulation_time = 0.0;
@@ -190,6 +187,7 @@ void update() {
 
     first = false;
     simulation_time = 0.0;
+    simulated_time = 0.0;
 
     reset_simulation();
   }
@@ -197,7 +195,6 @@ void update() {
   if (!first) {
     last_time = GetTime();
     last_update_time = last_time;
-    start_time = last_time;
     first = true;
   }
   double current_time = GetTime();
@@ -208,13 +205,15 @@ void update() {
 
   while (simulation_time >= scaled_delta) {
     simulation_time -= scaled_delta;
+    simulated_time += fixed_delta;
+
+    // Reset simulation every 2 minutes (scaled by tick speed)
+    if (simulated_time >= 120.0 && auto_reset) {
+      reset_simulation();
+      simulated_time = 0.0;
+    }
 
     fixed_update(fixed_delta);
-  }
-
-  // Reset simulation every 2 minutes (scaled by tick speed)
-  if ((current_time - start_time) * tick_speed >= 120.0 && auto_reset) {
-    reset = true;
   }
 }
 
@@ -270,7 +269,7 @@ void render() {
   // Checkbox to enable/disable warp
   warp = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 90}, "Warp", warp);
 
-  gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.2f", tick_speed));
+  gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.0f", tick_speed));
 
   EndTextureMode();
 }
@@ -406,20 +405,20 @@ static void train_ants(double fixed_delta) {
           delta += fabs(outputs[i] - pred[i]);
         }
         delta /= ANN_OUTPUTS;
-        printf("Delta: %.2f\n", delta);
-        printf("Inputs: ");
-        for (int j = 0; j < ANN_INPUTS; j++) {
-          printf("%.2f ", inputs[j]);
-        }
-        printf("\nOutputs: ");
-        for (int j = 0; j < ANN_OUTPUTS; j++) {
-          printf("%.2f ", outputs[j]);
-        }
-        printf("\nPred: ");
-        for (int j = 0; j < ANN_OUTPUTS; j++) {
-          printf("%.2f ", pred[j]);
-        }
-        printf("\n");
+        // printf("Delta: %.2f\n", delta);
+        // printf("Inputs: ");
+        // for (int j = 0; j < ANN_INPUTS; j++) {
+        //   printf("%.2f ", inputs[j]);
+        // }
+        // printf("\nOutputs: ");
+        // for (int j = 0; j < ANN_OUTPUTS; j++) {
+        //   printf("%.2f ", outputs[j]);
+        // }
+        // printf("\nPred: ");
+        // for (int j = 0; j < ANN_OUTPUTS; j++) {
+        //   printf("%.2f ", pred[j]);
+        // }
+        // printf("\n");
       }
 
     } else {

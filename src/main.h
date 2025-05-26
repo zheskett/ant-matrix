@@ -5,7 +5,7 @@
 #include "entities/food.h"
 #include "util/util.h"
 
-#define LEARN_RATE 0.01
+#define LEARN_RATE 0.0001
 // 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 9
 
@@ -23,7 +23,7 @@
 #define CAM_SPEED 1000
 
 #define MAX_DELTA 5.0
-#define WARP_SPEED 65536.0
+#define WARP_SPEED 10000.0
 
 extern vec_ant_t ant_vec;
 extern vec_food_t food_vec;
