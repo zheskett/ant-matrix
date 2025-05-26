@@ -52,7 +52,9 @@ const int food_detection_radius = 500;
 const int min_food_distance = 500;
 const int max_starting_food_amount = 30;
 const int min_starting_food_amount = 10;
+
 float tick_speed = 1.0;
+double render_time = 0.0;
 
 int window_w = 1920;
 int window_h = 1080;
@@ -69,7 +71,9 @@ Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 #pragma endregion
 
 int main() {
+  ;
   initialize();
+  double last_render_time = GetTime();
 
   while (!WindowShouldClose()) {
     if (IsWindowResized()) {
@@ -78,6 +82,8 @@ int main() {
 
     input();
     update();
+    render_time = GetTime() - last_render_time;
+    last_render_time = GetTime();
     render();
     render_present();
   }
@@ -161,6 +167,17 @@ void input() {
 }
 
 void update() {
+  if (warp) {
+    if (tick_speed <= 100.0f) {
+      tick_speed = WARP_SPEED;
+    }
+    if (1 / render_time < 16) {
+      tick_speed /= 2.0f;
+    }
+  } else {
+    tick_speed = 1.0f;
+  }
+
   const double fixed_delta = 1.0 / (double)TICK_RATE;
   const double scaled_delta = fixed_delta / tick_speed;
   static bool first = false;
@@ -237,7 +254,6 @@ void render() {
   DrawFPS(0, 0);
   if (gui_draw_button(mouse_pos, (Rectangle){10, 20, 300, 20}, "Reset Speed")) {
     warp = false;
-    tick_speed = 1.0f;
   }
 
   // Button to start runing the simulation from the network
@@ -253,11 +269,6 @@ void render() {
 
   // Checkbox to enable/disable warp
   warp = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 90}, "Warp", warp);
-  if (warp) {
-    tick_speed = WARP_SPEED;
-  } else if (tick_speed != 1.0f) {
-    tick_speed = 1.0f;
-  }
 
   gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.2f", tick_speed));
 

@@ -22,8 +22,8 @@
 
 #define CAM_SPEED 1000
 
-#define MAX_DELTA 0.25
-#define WARP_SPEED 2000.0f
+#define MAX_DELTA 5.0
+#define WARP_SPEED 65536.0
 
 extern vec_ant_t ant_vec;
 extern vec_food_t food_vec;
