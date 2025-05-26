@@ -3,7 +3,7 @@
 
 #include "entities/food.h"
 #include "raylib.h"
-#include "util/definitions.h"
+#include "util/util.h"
 #include "vec.h"
 
 #define ANT_SCALE 0.25f

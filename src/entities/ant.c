@@ -6,7 +6,6 @@
 #include "main.h"
 #include "raylib.h"
 #include "raymath.h"
-#include "util/definitions.h"
 
 static ant_logic_t ant_decision(ant_t* ant, float delta_time);
 

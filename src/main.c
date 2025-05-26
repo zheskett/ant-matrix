@@ -5,15 +5,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "entities/ant.h"
-#include "entities/food.h"
 #include "genann.h"
 
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
-#include "util/definitions.h"
 #include "vec.h"
 
 static void reset_simulation(void);
@@ -269,8 +266,8 @@ void initialize() {
   ant_ann = genann_init(ANN_INPUTS, 1, 64, ANN_OUTPUTS);
 
   // Initialize raylib
-  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN);
-  InitWindow(window_w, window_h, "Ant Matrix");
+  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
+  InitWindow(0, 0, "Ant Matrix");
   SetTargetFPS(TARGET_FPS);
 
   ant_texture = LoadTexture("assets/ant.png");
@@ -282,7 +279,11 @@ void initialize() {
 
   offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
   SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
-  resize_window(window_w, window_h);
+  const int height = nearest_16_by_9_height(GetScreenWidth());
+  resize_window(height * 16 / 9, height);
+  // Position the window in the center of the screen
+  SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
+                    (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
 
   // Init GUI
   GuiLoadStyleDefault();

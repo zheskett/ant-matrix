@@ -3,7 +3,7 @@
 
 #include "entities/ant.h"
 #include "entities/food.h"
-#include "util/definitions.h"
+#include "util/util.h"
 
 #define LEARN_RATE 0.01
 // 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
