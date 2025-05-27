@@ -9,7 +9,7 @@
 
 static ant_logic_t ant_decision(ant_t* ant, float delta_time);
 
-ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation) {
+ant_t* create_ant(Vector2 pos, Texture2D* texture, double rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
@@ -113,7 +113,7 @@ Circle get_ant_detector_circle(ant_t* ant) {
   return circle;
 }
 
-void ant_set_angle(ant_t* ant, float angle) {
+void ant_set_angle(ant_t* ant, double angle) {
   if (!ant) {
     return;
   }

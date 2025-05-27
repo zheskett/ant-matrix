@@ -28,7 +28,7 @@ typedef struct {
   food_t* nearest_food;
   Vector2 spawn;
   Vector2 pos;
-  float rotation;
+  double rotation;
   bool has_food;
   bool is_coliding;
 } ant_t;
@@ -43,7 +43,7 @@ typedef vec_t(ant_t*) vec_ant_t;
  * @param rotation The rotation of the ant in radians.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
-ant_t* create_ant(Vector2 pos, Texture2D* texture, float rotation);
+ant_t* create_ant(Vector2 pos, Texture2D* texture, double rotation);
 
 /**
  * @brief Draw the ant entity.
@@ -99,7 +99,7 @@ Circle get_ant_detector_circle(ant_t* ant);
  * @param ant The ant entity to move.
  * @param angle The angle to move towards in radians.
  */
-void ant_set_angle(ant_t* ant, float angle);
+void ant_set_angle(ant_t* ant, double angle);
 
 /**
  * @brief Move the ant in the faced direction.
