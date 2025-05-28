@@ -6,15 +6,15 @@
 #include "util/util.h"
 
 #define LEARN_RATE 0.1
-#define LEARN_RATE_DECAY 0.99999
+#define LEARN_RATE_DECAY 0.999995
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 11
 
 // 3 actions, 1 angle (sin/cos)
 #define ANN_OUTPUTS 5
 
-#define ANN_HIDDEN_LAYERS 1
-#define ANN_HIDDEN_NODES 32
+#define ANN_HIDDEN_LAYERS 2
+#define ANN_HIDDEN_NODES 16
 
 #define TARGET_FPS 0
 #define TICK_RATE 30

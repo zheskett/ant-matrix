@@ -43,6 +43,7 @@ bool training = true;
 bool reset = false;
 bool auto_reset = true;
 bool warp = false;
+bool random_session = false;
 
 vec_ant_t ant_vec;
 vec_food_t food_vec;
@@ -164,19 +165,6 @@ void input() {
 }
 
 void update() {
-  if (warp) {
-    if (tick_speed <= 1.1) {
-      tick_speed = WARP_SPEED;
-    }
-
-    // Scale tick speed based on the render time to get 30 FPS
-    tick_speed = fmin(tick_speed * 1.1, fmax(tick_speed / 4, tick_speed / (30.0 * GetFrameTime())));
-
-    tick_speed = fmin(WARP_SPEED * 100, tick_speed);
-  } else {
-    tick_speed = 1.0f;
-  }
-
   const double fixed_delta = 1.0 / (double)TICK_RATE;
   const double scaled_delta = fixed_delta / tick_speed;
   static double simulated_time = 0.0;
@@ -185,9 +173,21 @@ void update() {
   static double simulation_time = 0.0;
   static double last_update_time = 0.0;
 
+  if (warp) {
+    if (tick_speed <= 1.1) {
+      tick_speed = WARP_SPEED;
+    }
+
+    // Scale tick speed based on the render time to get 30 FPS
+    tick_speed = fmin(tick_speed * 1.1, fmax(tick_speed / 2.0, tick_speed / (30.0 * GetFrameTime())));
+
+    tick_speed = fmin(WARP_SPEED * 100, tick_speed);
+  } else {
+    tick_speed = 1.0f;
+  }
+
   if (reset) {
     reset = false;
-
     first = false;
     simulation_time = 0.0;
     simulated_time = 0.0;
@@ -221,11 +221,23 @@ void update() {
 }
 
 void fixed_update(double fixed_delta) {
+  if (training && random_session) {
+    int i = 0;
+    ant_t *ant = NULL;
+
+    vec_foreach(&ant_vec, ant, i) {
+      ant->rotation = (rand() % 360) * DEG2RAD;
+      ant->pos.x = rand() % WORLD_W;
+      ant->pos.y = rand() % WORLD_H;
+      ant->has_food = rand() % 3 == 0;
+      ant->is_coliding = rand() % 10 == 0;
+    }
+  }
   train_ants(fixed_delta);
 
-  food_t *food = NULL;
-  int i = 0;
-  vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
+  // food_t *food = NULL;
+  // int i = 0;
+  // vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
 }
 
 void render() {
@@ -334,9 +346,7 @@ void render_present() {
 static void train_ants(double fixed_delta) {
   ant_t *ant = NULL;
   int i = 0;
-  learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-5);
-  const double max_distance = hypot(WORLD_W / 2, WORLD_H / 2);
-  const double max_food_distance = food_detection_radius + ANT_DETECTOR_RADIUS * ANT_SCALE * 2.0;
+  learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
 
   vec_foreach(&ant_vec, ant, i) {
     ant_update_nearest_food(ant);
@@ -369,31 +379,6 @@ static void train_ants(double fixed_delta) {
     inputs[10] = ant->is_coliding ? 1.0 : 0.0;
 
     if (training) {
-      // Quarter chance to train the ant, otherwise run the ant
-      if (rand() % 16 == 0) {
-        const double *pred = genann_run(ant_ann, inputs);
-        ant_logic_t logic = {0};
-        const double len = hypot(dec(pred[0]), dec(pred[1]));
-        if (len > 0.0) {
-          logic.angle = constrain_angle(atan2(dec(pred[1]) / len, dec(pred[0]) / len));
-        } else {
-          logic.angle = 0.0;
-        }
-        int choice = 2;
-        logic.action = ANT_STEP_ACTION;
-        if (pred[3] > pred[choice]) {
-          logic.action = ANT_GATHER_ACTION;
-          choice = 3;
-        }
-        if (pred[4] > pred[choice]) {
-          logic.action = ANT_DROP_ACTION;
-          choice = 4;
-        }
-
-        run_update_ant(ant, logic, fixed_delta);
-        continue;
-      }
-
       ant_logic_t logic = train_update_ant(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
@@ -404,7 +389,7 @@ static void train_ants(double fixed_delta) {
       outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
 
       if (logic.action != ANT_STEP_ACTION) {
-        for (int j = 0; j < 50; j++) {
+        for (int j = 0; j < 40; j++) {
           genann_train(ant_ann, inputs, outputs, learning_rate);
         }
       } else if (inputs[10] > 0) {
@@ -485,7 +470,7 @@ static void reset_simulation() {
 
   // Create ants
   for (int i = 0; i < starting_ants; i++) {
-    vec_push(&ant_vec, create_ant(spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
+    vec_push(&ant_vec, create_ant(spawn, spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
   }
 
   // Create food away from ants
@@ -499,4 +484,6 @@ static void reset_simulation() {
              create_food(food_pos, food_radius, food_detection_radius,
                          rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
   }
+
+  random_session = rand() % 3 == 0;
 }

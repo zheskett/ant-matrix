@@ -9,7 +9,7 @@
 
 static ant_logic_t ant_decision(ant_t* ant, float delta_time);
 
-ant_t* create_ant(Vector2 pos, Texture2D* texture, double rotation) {
+ant_t* create_ant(Vector2 pos, Vector2 spawn, Texture2D* texture, double rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
@@ -18,7 +18,7 @@ ant_t* create_ant(Vector2 pos, Texture2D* texture, double rotation) {
   ant->texture = texture;
   ant->nearest_food = NULL;
   ant->pos = pos;
-  ant->spawn = pos;
+  ant->spawn = spawn;
   ant->rotation = rotation;
   ant->has_food = false;
   ant->is_coliding = false;

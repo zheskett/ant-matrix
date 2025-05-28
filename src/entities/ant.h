@@ -43,7 +43,7 @@ typedef vec_t(ant_t*) vec_ant_t;
  * @param rotation The rotation of the ant in radians.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
-ant_t* create_ant(Vector2 pos, Texture2D* texture, double rotation);
+ant_t* create_ant(Vector2 pos, Vector2 spawn, Texture2D* texture, double rotation);
 
 /**
  * @brief Draw the ant entity.
