@@ -20,7 +20,7 @@
 #define TICK_RATE 30
 #define SCREEN_W 1920
 #define SCREEN_H 1080
-#define WORLD_SCALE 1.0f
+#define WORLD_SCALE 2.0f
 #define WORLD_W ((int)(SCREEN_W * WORLD_SCALE))
 #define WORLD_H ((int)(SCREEN_H * WORLD_SCALE))
 

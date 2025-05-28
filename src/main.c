@@ -47,13 +47,13 @@ bool warp = false;
 vec_ant_t ant_vec;
 vec_food_t food_vec;
 
-const int starting_ants = 50;
-const int starting_food = 7;
+const int starting_ants = 100;
+const int starting_food = 10;
 const int food_radius = 40;
 const int food_detection_radius = 400;
 const int min_food_distance = 500;
-const int max_starting_food_amount = 30;
-const int min_starting_food_amount = 10;
+const int max_starting_food_amount = 200;
+const int min_starting_food_amount = 50;
 
 double tick_speed = 1.0;
 
@@ -165,12 +165,12 @@ void input() {
 
 void update() {
   if (warp) {
-    if (tick_speed <= 2.0) {
+    if (tick_speed <= 1.1) {
       tick_speed = WARP_SPEED;
     }
 
     // Scale tick speed based on the render time to get 30 FPS
-    tick_speed = fmin(tick_speed * 1.2, fmax(tick_speed / 1.8, tick_speed / (30.0 * GetFrameTime())));
+    tick_speed = fmin(tick_speed * 1.1, fmax(tick_speed / 4, tick_speed / (30.0 * GetFrameTime())));
 
     tick_speed = fmin(WARP_SPEED * 100, tick_speed);
   } else {
@@ -369,6 +369,31 @@ static void train_ants(double fixed_delta) {
     inputs[10] = ant->is_coliding ? 1.0 : 0.0;
 
     if (training) {
+      // Quarter chance to train the ant, otherwise run the ant
+      if (rand() % 16 == 0) {
+        const double *pred = genann_run(ant_ann, inputs);
+        ant_logic_t logic = {0};
+        const double len = hypot(dec(pred[0]), dec(pred[1]));
+        if (len > 0.0) {
+          logic.angle = constrain_angle(atan2(dec(pred[1]) / len, dec(pred[0]) / len));
+        } else {
+          logic.angle = 0.0;
+        }
+        int choice = 2;
+        logic.action = ANT_STEP_ACTION;
+        if (pred[3] > pred[choice]) {
+          logic.action = ANT_GATHER_ACTION;
+          choice = 3;
+        }
+        if (pred[4] > pred[choice]) {
+          logic.action = ANT_DROP_ACTION;
+          choice = 4;
+        }
+
+        run_update_ant(ant, logic, fixed_delta);
+        continue;
+      }
+
       ant_logic_t logic = train_update_ant(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
@@ -379,19 +404,19 @@ static void train_ants(double fixed_delta) {
       outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
 
       if (logic.action != ANT_STEP_ACTION) {
-        for (int j = 0; j < 40; j++) {
+        for (int j = 0; j < 50; j++) {
           genann_train(ant_ann, inputs, outputs, learning_rate);
         }
-      } else if (inputs[2] > 0) {
-        for (int j = 0; j < 2; j++) {
+      } else if (inputs[10] > 0) {
+        for (int j = 0; j < 10; j++) {
           genann_train(ant_ann, inputs, outputs, learning_rate);
         }
-      } else if (inputs[9] > 0 || inputs[10] > 0) {
-        for (int j = 0; j < 3; j++) {
+      } else if (inputs[9] > 0) {
+        for (int j = 0; j < 1; j++) {
           genann_train(ant_ann, inputs, outputs, learning_rate);
         }
       } else {
-        genann_train(ant_ann, inputs, outputs, learning_rate * 0.25);
+        genann_train(ant_ann, inputs, outputs, learning_rate * 0.2);
       }
 
       if (!warp && rand() % 1000 == 0) {
