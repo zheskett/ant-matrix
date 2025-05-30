@@ -4,12 +4,10 @@
  * @brief Artificial Neural Network (ANN) structure for a neural network.
  */
 typedef struct {
-  int num_inputs;         // Number of input neurons
   int num_hidden_layers;  // Number of hidden layers
-  int num_outputs;        // Number of output neurons
-  int *num_hidden;        // Array containing the number of neurons in each hidden layer
-  double **output;        // Output of each neuron in the network
-  double ***weights;      // Weights for the connections between neurons
+  int *neuron_counts;     // Array containing the number of neurons in each layer
+  double *output;         // 2D array: Output of each neuron in the network
+  double *weights;        // 3D array: Weights for the connections between neurons
 } neural_network_t;
 
 /**
@@ -29,7 +27,7 @@ double neural_sigmoid(double x);
  * @param num_outputs The number of output neurons.
  * @return A pointer to the created neural network, or \c NULL on failure.
  */
-neural_network_t *create_neural_network(int num_inputs, int num_hidden_layers, int num_hidden_array[], int num_outputs);
+neural_network_t *create_neural_network(int num_hidden_layers, int neuron_counts_array[]);
 
 /**
  * @brief Randomize the weights of the neural network.
@@ -39,6 +37,17 @@ neural_network_t *create_neural_network(int num_inputs, int num_hidden_layers, i
  * @param max_weight The maximum weight value.
  */
 void randomize_weights(neural_network_t *network, double min_weight, double max_weight);
+
+/**
+ * @brief Get the weights for a specific in-layer in the neural network. \n
+ *
+ * @param network The neural network.
+ * @param layer The index of the in-layer to get weights for.
+ * @return A pointer to the weights of the specified layer.
+ *
+ * Usage: double (*layer_weights)[network->neuron_counts[layer + 1]] = neural_layer_weights(network, layer);
+ */
+double (*neural_layer_weights(neural_network_t *network, int layer))[];
 
 /**
  * @brief Print the structure and weights of the neural network.

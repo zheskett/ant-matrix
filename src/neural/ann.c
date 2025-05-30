@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdalign.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,76 +10,50 @@
 
 double neural_sigmoid(double x) { return 1.0 / (1.0 + exp(-x)); }
 
-neural_network_t *create_neural_network(int num_inputs, int num_hidden_layers, int num_hidden_array[],
-                                        int num_outputs) {
+neural_network_t *create_neural_network(int num_hidden_layers, int neuron_counts_array[]) {
   num_hidden_layers = MAX(0, num_hidden_layers);
   neural_network_t *network = malloc(sizeof(neural_network_t));
   if (!network) {
     return NULL;
   }
 
-  network->num_inputs = num_inputs;
   network->num_hidden_layers = num_hidden_layers;
-  network->num_outputs = num_outputs;
-  network->num_hidden = NULL;
+  network->neuron_counts = NULL;
   network->output = NULL;
   network->weights = NULL;
 
-  if (num_hidden_layers == 0) {
-    network->num_hidden = NULL;
-  } else {
-    network->num_hidden = calloc(num_hidden_layers, sizeof(int));
-    if (!network->num_hidden) {
+  network->neuron_counts = calloc(num_hidden_layers + 2, sizeof(int));
+  if (!network->neuron_counts) {
+    free_neural_network(network);
+    return NULL;
+  }
+
+  memcpy(network->neuron_counts, neuron_counts_array, (num_hidden_layers + 2) * sizeof(int));
+
+  size_t output_size = 0;
+  size_t weights_size = 0;
+  for (int i = 0; i < num_hidden_layers + 1; i++) {
+    const int in_size = network->neuron_counts[i];
+    const int out_size = network->neuron_counts[i + 1];
+    if (in_size <= 0 || out_size <= 0) {
       free_neural_network(network);
       return NULL;
     }
 
-    memcpy(network->num_hidden, num_hidden_array, num_hidden_layers * sizeof(int));
+    output_size += out_size;
+    weights_size += in_size * out_size;
   }
 
-  network->output = (double **)calloc(num_hidden_layers + 1, sizeof(double *));
+  network->output = calloc(output_size, sizeof(double));
   if (!network->output) {
     free_neural_network(network);
     return NULL;
   }
 
-  for (int i = 0; i < num_hidden_layers + 1; i++) {
-    const int out_size = i == num_hidden_layers ? num_outputs : num_hidden_array[i];
-    network->output[i] = calloc(out_size, sizeof(double));
-    if (!network->output[i]) {
-      free_neural_network(network);
-      return NULL;
-    }
-  }
-
-  network->weights = (double ***)calloc(num_hidden_layers + 1, sizeof(double **));
+  network->weights = calloc(weights_size, sizeof(double));
   if (!network->weights) {
     free_neural_network(network);
     return NULL;
-  }
-
-  for (int i = 0; i < num_hidden_layers + 1; i++) {
-    const int in_size = i == 0 ? num_inputs : num_hidden_array[i - 1];
-    const int out_size = i == num_hidden_layers ? num_outputs : num_hidden_array[i];
-
-    // Account for alignment and padding
-    size_t row_bytes = in_size * sizeof(double *);
-    size_t align = alignof(double);
-    size_t pad = (align - (row_bytes % align)) % align;
-    size_t total = row_bytes + pad + in_size * out_size * sizeof(double);
-
-    char *base = calloc(total, 1);  // Allocate and zero-initialize memory
-    if (!base) {
-      free_neural_network(network);
-      return NULL;
-    }
-    double **rows = (double **)base;
-    double *block = (double *)(base + row_bytes + pad);
-
-    network->weights[i] = rows;
-    for (int j = 0; j < in_size; j++) {
-      rows[j] = block + j * out_size;
-    }
   }
 
   return network;
@@ -90,12 +65,28 @@ void randomize_weights(neural_network_t *network, double min_weight, double max_
   }
 
   for (int i = 0; i < network->num_hidden_layers + 1; i++) {
-    for (int j = 0; j < (i == 0 ? network->num_inputs : network->num_hidden[i - 1]); j++) {
-      for (int k = 0; k < (i == network->num_hidden_layers ? network->num_outputs : network->num_hidden[i]); k++) {
-        network->weights[i][j][k] = min_weight + (rand() / (double)RAND_MAX) * (max_weight - min_weight);
+    int in_size = network->neuron_counts[i];
+    int out_size = network->neuron_counts[i + 1];
+    double (*layer_weights)[out_size] = neural_layer_weights(network, i);
+
+    for (int j = 0; j < in_size; j++) {
+      for (int k = 0; k < out_size; k++) {
+        layer_weights[j][k] = min_weight + (max_weight - min_weight) * ((double)rand() / RAND_MAX);
       }
     }
   }
+}
+
+double (*neural_layer_weights(neural_network_t *network, int layer))[] {
+  int out = network->neuron_counts[layer + 1];
+  size_t offset = 0;
+  for (int i = 0; i < layer; ++i) {
+    int in_size = network->neuron_counts[i];
+    int out_size = network->neuron_counts[i + 1];
+    offset += in_size * out_size;
+  }
+
+  return (double (*)[out])(network->weights + offset);
 }
 
 void print_neural_network(neural_network_t *network) {
@@ -104,23 +95,24 @@ void print_neural_network(neural_network_t *network) {
   }
 
   printf("Neural Network Structure:\n");
-  printf("Inputs: %d\n", network->num_inputs);
+  printf("Inputs: %d\n", network->neuron_counts[0]);
   printf("Hidden Layers: %d\n", network->num_hidden_layers);
   for (int i = 0; i < network->num_hidden_layers; i++) {
-    printf("Hidden Layer %d: %d neurons\n", i + 1, network->num_hidden[i]);
+    printf("Hidden Layer %d: %d neurons\n", i + 1, network->neuron_counts[i + 1]);
   }
-  printf("Outputs: %d\n", network->num_outputs);
+  printf("Outputs: %d\n", network->neuron_counts[network->num_hidden_layers + 1]);
 
   printf("\nWeights:");
   for (int i = 0; i < network->num_hidden_layers + 1; i++) {
     printf("\nLayer %d-%d:\n", i, i + 1);
-    for (int j = 0; j < (i == 0 ? network->num_inputs : network->num_hidden[i - 1]); j++) {
+    double (*layer_weights)[network->neuron_counts[i + 1]] = neural_layer_weights(network, i);
+    for (int j = 0; j < network->neuron_counts[i]; j++) {
       printf("[");
-      for (int k = 0; k < (i == network->num_hidden_layers ? network->num_outputs : network->num_hidden[i]); k++) {
+      for (int k = 0; k < network->neuron_counts[i + 1]; k++) {
         if (k > 0) {
           printf(", ");
         }
-        printf("%.3f", i, j, k, network->weights[i][j][k]);
+        printf("%.3f", layer_weights[j][k]);
       }
       printf("]\n");
     }
@@ -132,27 +124,14 @@ void free_neural_network(neural_network_t *network) {
     return;
   }
 
-  if (network->num_hidden) {
-    free(network->num_hidden);
+  if (network->neuron_counts) {
+    free(network->neuron_counts);
   }
-
   if (network->output) {
-    for (int i = 0; i < network->num_hidden_layers + 1; i++) {
-      if (network->output[i]) {
-        free(network->output[i]);
-      }
-    }
     free(network->output);
   }
-
   if (network->weights) {
-    for (int i = 0; i < network->num_hidden_layers + 1; i++) {
-      if (network->weights[i]) {
-        free(network->weights[i]);
-      }
-    }
     free(network->weights);
   }
-
   free(network);
 }
