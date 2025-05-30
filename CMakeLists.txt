@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(AntMatrix C)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 
 find_package(raylib REQUIRED)
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c" "${CMAKE_SOURCE_DIR}/lib/*.c")
