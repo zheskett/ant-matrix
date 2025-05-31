@@ -1,9 +1,6 @@
 #include "ant.h"
 
-#include <math.h>
-#include <stdlib.h>
-
-#include "main.h"
+#include "main/simulation.h"
 #include "raylib.h"
 #include "raymath.h"
 

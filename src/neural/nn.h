@@ -1,4 +1,6 @@
 #pragma once
+#include <stddef.h>
+#include <stdio.h>
 
 /**
  * @brief Artificial Neural Network (ANN) structure for a neural network.

@@ -1,7 +1,5 @@
 #include "food.h"
 
-#include <stdlib.h>
-
 #include "raylib.h"
 
 food_t* create_food(Vector2 pos, float radius, float detection_radius, int amount) {

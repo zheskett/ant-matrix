@@ -1,5 +1,4 @@
 #pragma once
-#include <stdbool.h>
 
 #include "entities/ant.h"
 #include "entities/food.h"
@@ -33,6 +32,7 @@
 extern vec_ant_t ant_vec;
 extern vec_food_t food_vec;
 
+int start(int argc, char **argv);
 void fixed_update(double fixed_delta);
 void render(void);
 void render_present(void);

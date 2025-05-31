@@ -1,6 +1,4 @@
 #pragma once
-#include <stdbool.h>
-
 #include "entities/food.h"
 #include "raylib.h"
 #include "util/util.h"

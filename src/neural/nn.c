@@ -1,7 +1,5 @@
 #include "neural/nn.h"
 
-#include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -122,9 +120,9 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
 
   fprintf(fp, "Neural Network Structure:\n");
   fprintf(fp, "Inputs: %zu\n", network->neuron_counts[0]);
-  fprintf(fp, "Hidden Layers: %d\n", network->num_hidden_layers);
+  fprintf(fp, "Hidden Layers: %zu\n", network->num_hidden_layers);
   for (size_t i = 0; i < network->num_hidden_layers; i++) {
-    fprintf(fp, "Hidden Layer %d: %d neurons\n", i + 1, network->neuron_counts[i + 1]);
+    fprintf(fp, "Hidden Layer %zu: %zu neurons\n", i + 1, network->neuron_counts[i + 1]);
   }
   fprintf(fp, "Outputs: %zu\n", network->neuron_counts[network->num_hidden_layers + 1]);
 
@@ -146,7 +144,7 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
 
   fprintf(fp, "\nBiases:\n");
   for (size_t i = 0; i < network->num_hidden_layers + 2; i++) {
-    fprintf(fp, "Layer %d: ", i);
+    fprintf(fp, "Layer %zu: ", i);
     double *bias = network->bias + neural_layer_offset(network, i);
     for (size_t j = 0; j < network->neuron_counts[i]; j++) {
       if (j > 0) {
