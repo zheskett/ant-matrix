@@ -1,4 +1,6 @@
 #pragma once
+#ifndef FOOD_H
+#define FOOD_H
 #include "raylib.h"
 #include "vec.h"
 
@@ -50,3 +52,5 @@ void destroy_food(food_t* food);
  * @param food Pointer to the food to take from
  */
 void grab_food(food_t* food);
+
+#endif /* FOOD_H */

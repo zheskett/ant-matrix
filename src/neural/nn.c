@@ -6,7 +6,6 @@
 #include "util/util.h"
 
 static void calculate_output_layer(neural_network_t *network, size_t output_layer);
-static void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out);
 static size_t neural_layer_offset(neural_network_t *network, size_t layer);
 
 static inline double neural_sigmoid(double x) { return 1.0 / (1.0 + exp(-x)); }
@@ -126,17 +125,17 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
   }
   fprintf(fp, "Outputs: %zu\n", network->neuron_counts[network->num_hidden_layers + 1]);
 
-  fprintf(fp, "\nT_Weights:");
+  fprintf(fp, "\nWeights:");
   for (size_t i = 0; i < network->num_hidden_layers + 1; i++) {
     fprintf(fp, "\nLayer %zu-%zu:\n", i, i + 1);
     double (*layer_weights)[network->neuron_counts[i]] = neural_layer_t_weights(network, i + 1);
-    for (size_t j = 0; j < network->neuron_counts[i + 1]; j++) {
+    for (size_t j = 0; j < network->neuron_counts[i]; j++) {
       fprintf(fp, "[");
-      for (size_t k = 0; k < network->neuron_counts[i]; k++) {
+      for (size_t k = 0; k < network->neuron_counts[i + 1]; k++) {
         if (k > 0) {
           fprintf(fp, ", ");
         }
-        fprintf(fp, "%.3f", layer_weights[k][j]);
+        fprintf(fp, "% .2f", layer_weights[k][j]);
       }
       fprintf(fp, "]\n");
     }
@@ -150,7 +149,20 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
       if (j > 0) {
         fprintf(fp, ", ");
       }
-      fprintf(fp, "%.3f", bias[j]);
+      fprintf(fp, "% .2f", bias[j]);
+    }
+    fprintf(fp, "\n");
+  }
+
+  fprintf(fp, "\nOutputs:\n");
+  for (size_t i = 0; i < network->num_hidden_layers + 2; i++) {
+    fprintf(fp, "Layer %zu: ", i);
+    double *output = network->output + neural_layer_offset(network, i);
+    for (size_t j = 0; j < network->neuron_counts[i]; j++) {
+      if (j > 0) {
+        fprintf(fp, ", ");
+      }
+      fprintf(fp, "% .2f", output[j]);
     }
     fprintf(fp, "\n");
   }
@@ -216,16 +228,7 @@ static void calculate_output_layer(neural_network_t *network, size_t output_laye
   }
 }
 
-/**
- * @brief Forward propagate A[layer], return next layer A[layer + 1]
- *
- * @param network The neural network to propagate through
- * @param layer The index of the layer to propagate from
- * @param m The number of training examples
- * @param A_in The input array for the current layer
- * @param A_out The output array for the next layer
- */
-static void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out) {
+void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out) {
   size_t in_size = network->neuron_counts[layer];
   size_t out_size = network->neuron_counts[layer + 1];
   size_t out_offset = neural_layer_offset(network, layer + 1);

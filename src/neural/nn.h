@@ -1,4 +1,7 @@
 #pragma once
+#ifndef NEURAL_NETWORK_H
+#define NEURAL_NETWORK_H
+
 #include <stddef.h>
 #include <stdio.h>
 
@@ -46,6 +49,17 @@ const double *run_neural_network(neural_network_t *network, double *input);
 void train_neural_network(neural_network_t *network, size_t m, double *inputs, double *desired_outputs, double lr);
 
 /**
+ * @brief Forward propagate A[layer], return next layer A[layer + 1]
+ *
+ * @param network The neural network to propagate through
+ * @param layer The index of the layer to propagate from
+ * @param m The number of training examples
+ * @param A_in The input array for the current layer
+ * @param A_out The output array for the next layer
+ */
+void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out);
+
+/**
  * @brief Randomize the weights of the neural network.
  *
  * @param network The neural network to randomize.
@@ -87,3 +101,5 @@ void write_neural_network(neural_network_t *network, FILE *fp);
  * @param network The neural network to destroy.
  */
 void free_neural_network(neural_network_t *network);
+
+#endif /* NEURAL_NETWORK_H */

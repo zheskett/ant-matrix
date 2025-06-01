@@ -1,4 +1,7 @@
 #pragma once
+#ifndef ANT_H
+#define ANT_H
+
 #include "entities/food.h"
 #include "raylib.h"
 #include "util/util.h"
@@ -126,3 +129,5 @@ bool ant_gather(ant_t* ant);
  * @return true if the ant dropped food, false otherwise.
  */
 bool ant_drop(ant_t* ant);
+
+#endif /* ANT_H */

@@ -1,4 +1,6 @@
 #pragma once
+#ifndef SIMULATION_H
+#define SIMULATION_H
 
 #include "entities/ant.h"
 #include "entities/food.h"
@@ -40,3 +42,5 @@ void resize_window(int w, int h);
 void update(void);
 void initialize(void);
 void input(void);
+
+#endif /* SIMULATION_H */
