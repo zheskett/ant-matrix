@@ -35,7 +35,7 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_
  * @param input The input data for the neural network.
  * @return A pointer to the output of the neural network.
  */
-const double *run_neural_network(neural_network_t *network, double *input);
+const double *run_neural_network(neural_network_t *network, const double *input);
 
 /**
  * @brief Train the neural network using backpropagation.
@@ -45,8 +45,22 @@ const double *run_neural_network(neural_network_t *network, double *input);
  * @param inputs An array of input values for the training examples (input_neurons x m).
  * @param desired_output An array of desired output values for the training examples (output_neurons x m).
  * @param lr The learning rate for weight updates.
+ * @return The cost of the training process, which can be used to evaluate the performance of the network.
  */
-void train_neural_network(neural_network_t *network, size_t m, double *inputs, double *desired_outputs, double lr);
+double train_neural_network(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
+                            double lr);
+
+/**
+ * @brief Calculate the cost of the neural network's predictions.
+ *
+ * @param network The neural network to calculate the cost for.
+ * @param m The number of training examples.
+ * @param y The actual output values (ground truth).
+ * @param y_hat The predicted output values from the neural network.
+ * @return The calculated cost value.
+ * @note The cost function is Mean Squared Error.
+ */
+double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat);
 
 /**
  * @brief Forward propagate A[layer], return next layer A[layer + 1]
@@ -57,7 +71,7 @@ void train_neural_network(neural_network_t *network, size_t m, double *inputs, d
  * @param A_in The input array for the current layer
  * @param A_out The output array for the next layer
  */
-void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out);
+void forward_propagate_layer(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out);
 
 /**
  * @brief Randomize the weights of the neural network.

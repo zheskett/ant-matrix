@@ -69,7 +69,7 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_
   return network;
 }
 
-const double *run_neural_network(neural_network_t *network, double *input) {
+const double *run_neural_network(neural_network_t *network, const double *input) {
   memcpy(network->output, input, network->neuron_counts[0] * sizeof(double));
   for (size_t i = 1; i < network->num_hidden_layers + 2; i++) {
     calculate_output_layer(network, i);
@@ -78,7 +78,88 @@ const double *run_neural_network(neural_network_t *network, double *input) {
   return (const double *)(network->output + neural_layer_offset(network, network->num_hidden_layers + 1));
 }
 
-void train_neural_network(neural_network_t *network, size_t m, double *inputs, double *desired_outputs, double lr) {}
+double train_neural_network(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
+                            double lr) {
+  if (!network || !inputs || !desired_outputs || m == 0) {
+    return NAN;
+  }
+  double cost = NAN;
+  double *data;
+  double *A[network->num_hidden_layers + 2];
+
+  const size_t num_layers = network->num_hidden_layers + 2;
+
+  // Calculate required memory
+  const size_t A_matrices_items = network->total_neurons * m;
+  const size_t C_matrices_items = network->total_weights * m;
+
+  data = malloc(network->total_neurons * m * sizeof(double));
+  if (!data) {
+    return cost;
+  }
+
+  size_t offset = 0;
+  for (size_t i = 0; i < num_layers; i++) {
+    A[i] = data + i * offset;
+    offset += network->neuron_counts[i] * m;
+  }
+  memcpy(A[0], inputs, network->neuron_counts[0] * m * sizeof(double));
+
+  // Feed forward through the network
+  for (size_t i = 0; i < num_layers - 1; i++) {
+    forward_propagate_layer(network, i, m, A[i], A[i + 1]);
+  }
+
+  cost = calculate_cost(network, m, desired_outputs, A[num_layers - 1]);
+
+  free(data);
+  return cost;
+}
+
+double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat) {
+  if (!network || !y || !y_hat || m == 0) {
+    return NAN;
+  }
+
+  double sum = 0.0;
+  const size_t n = network->neuron_counts[network->num_hidden_layers + 1];
+  const size_t total = n * m;
+  for (size_t i = 0; i < total; ++i) {
+    const double diff = y[i] - y_hat[i];
+    sum += diff * diff;
+  }
+  return sum / (double)total;
+}
+
+void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t m, const double *A_in, double *A_out) {
+  size_t in_size = network->neuron_counts[in_layer];
+  size_t out_size = network->neuron_counts[in_layer + 1];
+  size_t out_offset = neural_layer_offset(network, in_layer + 1);
+
+  const double (*W)[in_size] = neural_layer_t_weights(network, in_layer + 1);
+  const double *b = network->bias + out_offset;
+
+  // A[L+1] = sigmoid(Z[L+1] = W[L+1] * A[L] + b[L+1])
+  for (size_t i = 0; i < out_size; ++i) {
+    double *A_out_i = A_out + i * m;
+    for (size_t j = 0; j < m; ++j) {
+      A_out_i[j] = b[i];
+    }
+
+    // Cache optimized matrix multiplication
+    for (size_t k = 0; k < in_size; ++k) {
+      const double W_ik = W[i][k];
+      const double *A_in_k = A_in + k * m;
+      for (size_t j = 0; j < m; ++j) {
+        A_out_i[j] += W_ik * A_in_k[j];
+      }
+    }
+
+    for (size_t j = 0; j < m; ++j) {
+      A_out_i[j] = neural_sigmoid(A_out_i[j]);
+    }
+  }
+}
 
 void randomize_weights(neural_network_t *network, double min_weight, double max_weight) {
   if (!network || !network->t_weights) {
@@ -225,35 +306,5 @@ static void calculate_output_layer(neural_network_t *network, size_t output_laye
       sum += t_weights[i][j] * input[j];
     }
     output[i] = neural_sigmoid(sum);
-  }
-}
-
-void forward_propagate(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out) {
-  size_t in_size = network->neuron_counts[layer];
-  size_t out_size = network->neuron_counts[layer + 1];
-  size_t out_offset = neural_layer_offset(network, layer + 1);
-
-  const double (*W)[in_size] = neural_layer_t_weights(network, layer + 1);
-  const double *b = network->bias + out_offset;
-
-  // A[L+1] = sigmoid(Z[L+1] = W[L+1] * A[L] + b[L+1])
-  for (size_t i = 0; i < out_size; ++i) {
-    double *A_out_i = A_out + i * m;
-    for (size_t j = 0; j < m; ++j) {
-      A_out_i[j] = b[i];
-    }
-
-    // Cache optimized matrix multiplication
-    for (size_t k = 0; k < in_size; ++k) {
-      const double W_ik = W[i][k];
-      const double *A_in_k = A_in + k * m;
-      for (size_t j = 0; j < m; ++j) {
-        A_out_i[j] += W_ik * A_in_k[j];
-      }
-    }
-
-    for (size_t j = 0; j < m; ++j) {
-      A_out_i[j] = neural_sigmoid(A_out_i[j]);
-    }
   }
 }

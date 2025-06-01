@@ -1,12 +1,13 @@
 #include "neural/nn.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
 int main() {
-  size_t neuron_counts[] = {3, 20, 4, 3, 4, 8};
+  size_t neuron_counts[] = {3, 20, 4, 3, 4, 5};
   neural_network_t *network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
 
   assert(network != NULL);
@@ -32,5 +33,12 @@ int main() {
   printf("]\n");
   write_neural_network(network, stdout);
 
+  double score = train_neural_network(network, 1, input, output, 0.01);
+  assert(score < 1e-6 && score > -1e-6);
+
+  score = train_neural_network(network, 1, input, (const double[5]){0.5, 0.5, 0.5, 0.5, 0.5}, 0.01);
+  printf("Cost after training: %f\n", score);
+
+  free_neural_network(network);
   return 0;
 }
