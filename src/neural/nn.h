@@ -42,8 +42,8 @@ const double *run_neural_network(neural_network_t *network, const double *input)
  *
  * @param network The neural network to train.
  * @param m The number of training examples
- * @param inputs An array of input values for the training examples (input_neurons x m).
- * @param desired_output An array of desired output values for the training examples (output_neurons x m).
+ * @param inputs An array of input values for the training examples (m x input_neurons).
+ * @param desired_output An array of desired output values for the training examples (m x output_neurons).
  * @param lr The learning rate for weight updates.
  * @return The cost of the training process, which can be used to evaluate the performance of the network.
  */
