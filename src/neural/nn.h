@@ -58,7 +58,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
  * @param y The actual output values (ground truth).
  * @param y_hat The predicted output values from the neural network.
  * @return The calculated cost value.
- * @note The cost function is Mean Squared Error.
+ * @note Mean Squared Error (MSE): (1/2m) * Σ(y - y_hat)²
  */
 double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat);
 

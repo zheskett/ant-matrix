@@ -83,34 +83,100 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   if (!network || !inputs || !desired_outputs || m == 0) {
     return NAN;
   }
-  double cost = NAN;
-  double *data;
-  double *A[network->num_hidden_layers + 2];
-
+  const double *Y = desired_outputs;
+  const double m_inv = 1.0 / (double)m;
   const size_t num_layers = network->num_hidden_layers + 2;
-
   // Calculate required memory
   const size_t A_matrices_items = network->total_neurons * m;
-  const size_t C_matrices_items = network->total_weights * m;
+  const size_t delta_matrices_items = network->total_neurons * m;
+  const size_t dC_dW_items = network->total_weights;
 
-  data = malloc(network->total_neurons * m * sizeof(double));
+  double cost = 0.0;
+  double *data = NULL;
+  double *A[num_layers];
+  double *delta[num_layers];
+  double *dC_dW[num_layers];
+
+  data = calloc(A_matrices_items + delta_matrices_items + dC_dW_items, sizeof(double));
   if (!data) {
-    return cost;
+    return NAN;
   }
 
+  // Allocate memory for A, delta, dC_db, and dC_dW
   size_t offset = 0;
   for (size_t i = 0; i < num_layers; i++) {
-    A[i] = data + i * offset;
+    A[i] = data + offset;
+    delta[i] = data + A_matrices_items + offset;
     offset += network->neuron_counts[i] * m;
   }
   memcpy(A[0], inputs, network->neuron_counts[0] * m * sizeof(double));
+  offset = A_matrices_items + delta_matrices_items;
+  for (size_t i = 0; i < num_layers - 1; i++) {
+    dC_dW[i] = data + offset;
+    offset += network->neuron_counts[i + 1] * network->neuron_counts[i];
+  }
 
   // Feed forward through the network
   for (size_t i = 0; i < num_layers - 1; i++) {
     forward_propagate_layer(network, i, m, A[i], A[i + 1]);
   }
 
-  cost = calculate_cost(network, m, desired_outputs, A[num_layers - 1]);
+  const size_t L = num_layers - 1;
+  cost = calculate_cost(network, m, desired_outputs, A[L]);
+
+  // Backpropagation and weight updates
+  /*
+  (delta^L) = dC/dZ^L = dC/d(Y_hat) * d(Y_hat)/dZ^L = (1/m)(Y_hat - Y) * (Y_hat(1-Y_hat))
+  dC/d(Y_hat) = (1/m) * (Y_hat - Y)
+  d(Y_hat)/dZ^L = Y_hat * (1 - Y_hat)
+
+  dZ_{j,i}/db_{j} = 1
+  dC/db^L = delta * dZ/db = delta^L x 1(m x 1) = ∑ delta^L_{:,i}
+  dC/dW^L = (delta^L)((A^{L-1})^T)
+
+  dC/dA^[l] = dZ^[l+1]/dA^[l] * dC/dZ^[l+1] = (W^[l+1]^T)(delta^[l+1])
+  delta^[l] = dC/dA^[l] * dA^[l]/dZ^[l] = (W^[l+1]^T)(delta^[l+1]) * A^[l] * (1 - A^[l])
+  dC/db^[l] = ∑(delta^[l]_{:,i})
+  dC/dW^[l] = (delta^[l])(A^[l-1]^T)
+  */
+  // Output layer
+  double *bias = network->bias + neural_layer_offset(network, L);
+  for (size_t i = 0; i < network->neuron_counts[L]; i++) {
+    double sum = 0.0;
+    double *delta_Li = delta[L] + i * m;
+    const double *A_Li = A[L] + i * m;
+    const double *Y_i = Y + i * m;
+    for (size_t j = 0; j < m; j++) {
+      const double value = m_inv * (A_Li[j] - Y_i[j]) * A_Li[j] * (1 - A_Li[j]);
+      delta_Li[j] = value;
+      sum += value;
+    }
+    // Gradient descent bias
+    bias[i] -= lr * sum;
+  }
+
+  double (*W_L)[network->neuron_counts[L - 1]] = neural_layer_t_weights(network, L);
+  for (size_t i = 0; i < network->neuron_counts[L]; i++) {
+    // L-1 since 0-indexed
+    double *dC_dW_Li = dC_dW[L - 1] + i * network->neuron_counts[L - 1];
+    const double *delta_Li = delta[L] + i * m;
+    for (size_t j = 0; j < network->neuron_counts[L - 1]; j++) {
+      const double *A_L1j = A[L - 1] + j * m;
+      double sum = 0.0;
+      for (size_t k = 0; k < m; k++) {
+        sum += delta_Li[k] * A_L1j[k];
+      }
+      // Gradient descent weight, cannot adjust the in-place weights yet
+      dC_dW_Li[j] = sum;
+    }
+  }
+
+  // Hidden layers
+
+  // Apply gradient descent on weights
+  for (size_t i = 0; i < network->total_weights; i++) {
+    network->t_weights[i] -= lr * (*dC_dW)[i];
+  }
 
   free(data);
   return cost;
@@ -122,13 +188,13 @@ double calculate_cost(neural_network_t *network, size_t m, const double *y, cons
   }
 
   double sum = 0.0;
-  const size_t n = network->neuron_counts[network->num_hidden_layers + 1];
-  const size_t total = n * m;
+  const double mx2_inv = 1.0 / (2.0 * (double)m);
+  const size_t total = network->neuron_counts[network->num_hidden_layers + 1] * m;
   for (size_t i = 0; i < total; ++i) {
     const double diff = y[i] - y_hat[i];
-    sum += diff * diff;
+    sum += diff * diff * mx2_inv;
   }
-  return sum / (double)total;
+  return sum;
 }
 
 void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t m, const double *A_in, double *A_out) {
