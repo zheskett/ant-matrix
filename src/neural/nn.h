@@ -28,7 +28,7 @@ typedef struct {
  * layers.
  * @return A pointer to the created neural network, or \c NULL on failure.
  */
-neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_counts_array[]);
+neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t neuron_counts_array[]);
 
 /**
  * @brief Calculate the output of the neural network for a given input.

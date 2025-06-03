@@ -2,7 +2,7 @@
 
 #include <time.h>
 
-#include "genann.h"
+#include "neural/nn.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "util/gui.h"
@@ -34,7 +34,7 @@ static void train_ants(double fixed_delta);
  * 3: gather
  * 4: drop
  */
-genann *ant_ann = NULL;
+neural_network_t *ant_network = NULL;
 double learning_rate = LEARN_RATE;
 bool training = true;
 bool reset = false;
@@ -42,9 +42,13 @@ bool auto_reset = true;
 bool warp = false;
 bool random_session = false;
 
+vec_double_t input_vec;
+vec_double_t output_vec;
+
 vec_ant_t ant_vec;
 vec_food_t food_vec;
 
+int epoch = 0;
 const int starting_ants = 100;
 const int starting_food = 10;
 const int food_radius = 40;
@@ -94,7 +98,9 @@ int start(int argc, char **argv) {
   food_t *food = NULL;
   vec_foreach(&food_vec, food, i) { destroy_food(food); }
   vec_deinit(&food_vec);
-  genann_free(ant_ann);
+  vec_deinit(&input_vec);
+  vec_deinit(&output_vec);
+  free_neural_network(ant_network);
 
   CloseWindow();
 
@@ -288,8 +294,19 @@ void render() {
 
 void initialize() {
   srand(time(NULL));
-  // Init genann
-  ant_ann = genann_init(ANN_INPUTS, ANN_HIDDEN_LAYERS, ANN_HIDDEN_NODES, ANN_OUTPUTS);
+  const size_t neuron_counts[] = {ANN_INPUTS, ANN_HIDDEN_NODES, ANN_HIDDEN_NODES, ANN_OUTPUTS};
+  ant_network = create_neural_network(ANN_HIDDEN_LAYERS, neuron_counts);
+  if (!ant_network) {
+    fprintf(stderr, "Failed to create neural network\n");
+    exit(EXIT_FAILURE);
+  }
+  // Randomize weights and biases
+  const double std = sqrt(6) / sqrt(neuron_counts[0] + neuron_counts[ant_network->num_hidden_layers + 1]);
+  randomize_weights(ant_network, -std, std);
+  randomize_bias(ant_network, -0.01, 0.01);
+
+  vec_init(&input_vec);
+  vec_init(&output_vec);
 
   // Initialize raylib
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
@@ -353,18 +370,18 @@ static void train_ants(double fixed_delta) {
 
     const Vector2 spawn_vector = Vector2Subtract(ant->spawn, ant->pos);
     const double spawn_vector_length = Vector2Length(spawn_vector);
-    inputs[0] = enc(cos(ant->rotation));
-    inputs[1] = enc(sin(ant->rotation));
+    inputs[0] = cos(ant->rotation);
+    inputs[1] = sin(ant->rotation);
     inputs[2] = CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS) ? 1.0 : 0.0;
-    inputs[3] = enc(spawn_vector_length > 1e-9 ? spawn_vector.x / spawn_vector_length : -cos(ant->rotation));
-    inputs[4] = enc(spawn_vector_length > 1e-9 ? spawn_vector.y / spawn_vector_length : -sin(ant->rotation));
+    inputs[3] = spawn_vector_length > 1e-9 ? spawn_vector.x / spawn_vector_length : -cos(ant->rotation);
+    inputs[4] = spawn_vector_length > 1e-9 ? spawn_vector.y / spawn_vector_length : -sin(ant->rotation);
 
     if (ant->nearest_food) {
       const Vector2 food_vector = Vector2Subtract(ant->nearest_food->pos, ant->pos);
       const double food_vector_length = Vector2Length(food_vector);
       inputs[5] = CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius) ? 1.0 : 0.0;
-      inputs[6] = enc(food_vector_length > 1e-9 ? food_vector.x / food_vector_length : -cos(ant->rotation));
-      inputs[7] = enc(food_vector_length > 1e-9 ? food_vector.y / food_vector_length : -sin(ant->rotation));
+      inputs[6] = food_vector_length > 1e-9 ? food_vector.x / food_vector_length : -cos(ant->rotation);
+      inputs[7] = food_vector_length > 1e-9 ? food_vector.y / food_vector_length : -sin(ant->rotation);
     } else {
       inputs[5] = 0.0;
       inputs[6] = 0.0;
@@ -379,30 +396,47 @@ static void train_ants(double fixed_delta) {
       ant_logic_t logic = train_update_ant(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = enc(cos(logic.angle));
-      outputs[1] = enc(sin(logic.angle));
-      outputs[2] = logic.action == ANT_STEP_ACTION ? 1.0 : 0.0;
-      outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.0;
-      outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
+      outputs[0] = cos(logic.angle);
+      outputs[1] = sin(logic.angle);
+      outputs[2] = logic.action == ANT_STEP_ACTION ? 1.0 : -1.0;
+      outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : -1.0;
+      outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : -1.0;
 
       if (logic.action != ANT_STEP_ACTION) {
         for (int j = 0; j < 40; j++) {
-          genann_train(ant_ann, inputs, outputs, learning_rate);
+          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
         }
       } else if (inputs[10] > 0) {
         for (int j = 0; j < 10; j++) {
-          genann_train(ant_ann, inputs, outputs, learning_rate);
+          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
         }
       } else if (inputs[9] > 0) {
         for (int j = 0; j < 1; j++) {
-          genann_train(ant_ann, inputs, outputs, learning_rate);
+          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
         }
       } else {
-        genann_train(ant_ann, inputs, outputs, learning_rate * 0.2);
+        vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+        vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
       }
 
-      if (!warp && rand() % 1000 == 0) {
-        const double *pred = genann_run(ant_ann, inputs);
+      if (input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS) {
+        epoch++;
+        const double *input_ptr = input_vec.data;
+        const double *output_ptr = output_vec.data;
+        const double error = train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr,
+                                                  output_ptr, learning_rate);
+        if (epoch % 5000 == 0) {
+          printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
+        }
+        vec_clear(&input_vec);
+        vec_clear(&output_vec);
+      }
+
+      if (!warp && rand() % 5000 == 0) {
+        const double *pred = run_neural_network(ant_network, inputs);
         printf("Inputs: ");
         for (int j = 0; j < ANN_INPUTS; j++) {
           printf("%.3f ", inputs[j]);
@@ -419,11 +453,11 @@ static void train_ants(double fixed_delta) {
       }
 
     } else {
-      const double *pred = genann_run(ant_ann, inputs);
+      const double *pred = run_neural_network(ant_network, inputs);
       ant_logic_t logic = {0};
-      const double len = hypot(dec(pred[0]), dec(pred[1]));
+      const double len = hypot(pred[0], pred[1]);
       if (len > 0.0) {
-        logic.angle = constrain_angle(atan2(dec(pred[1]) / len, dec(pred[0]) / len));
+        logic.angle = constrain_angle(atan2(pred[1] / len, pred[0] / len));
       } else {
         logic.angle = 0.0;
       }
@@ -439,7 +473,7 @@ static void train_ants(double fixed_delta) {
       }
 
       run_update_ant(ant, logic, fixed_delta);
-      if (rand() % 1000 == 0) {
+      if (rand() % 2000 == 0) {
         printf("Inputs: ");
         for (int j = 0; j < ANN_INPUTS; j++) {
           printf("%.3f ", inputs[j]);

@@ -11,7 +11,7 @@ static char *allocate_data(neural_network_t *network, size_t m);
 
 static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
 
-neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_counts_array[]) {
+neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t neuron_counts_array[]) {
   num_hidden_layers = MAX(0, num_hidden_layers);
   neural_network_t *network = malloc(sizeof(neural_network_t));
   if (!network) {
@@ -208,13 +208,16 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
 
     // Cache optimized order
     for (size_t j = 0; j < in_size; j++) {
+      double *delta_lj = delta[l] + j * m;
+      for (size_t k = 0; k < m; k++) {
+        delta_lj[k] = 0.0;
+      }
+
       double sum = 0.0;
       const double *A_lj = A[l] + j * m;
-      double *delta_lj = delta[l] + j * m;
       for (size_t i = 0; i < out_size; i++) {
         const double *delta_l1i = delta[l + 1] + i * m;
         for (size_t k = 0; k < m; k++) {
-          // 0-initialized because of calloc
           delta_lj[k] += W_l1[i][j] * delta_l1i[k];
         }
       }
@@ -470,11 +473,13 @@ static char *allocate_data(neural_network_t *network, size_t m) {
   const size_t dC_dW_items = network->total_weights;
   const size_t size = (Y_items + A_matrices_items + delta_matrices_items + dC_dW_items) * sizeof(double);
   if (size > network->data_size) {
-    if (network->data) {
-      free(network->data);
-    }
     network->data_size = size;
-    network->data = malloc(size);
+    char *ptr = realloc(network->data, size);
+    if (!ptr) {
+      network->data_size = 0;
+      return NULL;
+    }
+    network->data = ptr;
   }
 
   return network->data;
