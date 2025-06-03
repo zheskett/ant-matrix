@@ -7,8 +7,9 @@
 
 static void calculate_output_layer(neural_network_t *network, size_t output_layer);
 static size_t neural_layer_offset(neural_network_t *network, size_t layer);
+static char *allocate_data(neural_network_t *network, size_t m);
 
-static inline double neural_sigmoid(double x) { return 1.0 / (1.0 + exp(-x)); }
+static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
 
 neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_counts_array[]) {
   num_hidden_layers = MAX(0, num_hidden_layers);
@@ -20,6 +21,8 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_
   network->num_hidden_layers = num_hidden_layers;
   network->total_neurons = 0;
   network->total_weights = 0;
+  network->data_size = 0;
+  network->data = NULL;
   network->neuron_counts = NULL;
   network->output = NULL;
   network->bias = NULL;
@@ -66,6 +69,13 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, size_t neuron_
     return NULL;
   }
 
+  // Calculate the size of the data used for training and inference (8 is arbitrary)
+  allocate_data(network, 8);
+  if (!network->data) {
+    free_neural_network(network);
+    return NULL;
+  }
+
   return network;
 }
 
@@ -93,30 +103,30 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   const size_t L = num_layers - 1;
 
   double cost = 0.0;
-  double *data = NULL;
+  double *data_ptr = (double *)allocate_data(network, m);
   double *Y = NULL;
   double *A[num_layers];
   double *delta[num_layers];
   double *dC_dW[num_layers];
 
-  data = calloc(Y_items + A_matrices_items + delta_matrices_items + dC_dW_items, sizeof(double));
-  if (!data) {
+  if (!data_ptr) {
     return NAN;
   }
 
   // Allocate memory for A, delta, dC_db, and dC_dW
-  Y = data;
-  size_t offset = Y_items;
+  Y = data_ptr;
+  data_ptr += Y_items;
   for (size_t i = 0; i < num_layers; i++) {
-    A[i] = data + offset;
-    delta[i] = data + A_matrices_items + offset;
-    offset += network->neuron_counts[i] * m;
+    A[i] = data_ptr;
+    data_ptr += network->neuron_counts[i] * m;
   }
-
-  offset = Y_items + A_matrices_items + delta_matrices_items;
+  for (size_t i = 0; i < num_layers; i++) {
+    delta[i] = data_ptr;
+    data_ptr += network->neuron_counts[i] * m;
+  }
   for (size_t i = 0; i < num_layers - 1; i++) {
-    dC_dW[i] = data + offset;
-    offset += network->neuron_counts[i + 1] * network->neuron_counts[i];
+    dC_dW[i] = data_ptr;
+    data_ptr += network->neuron_counts[i + 1] * network->neuron_counts[i];
   }
 
   // Transpose inputs, desired_outputs for Y and A[0]
@@ -137,20 +147,21 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     forward_propagate_layer(network, i, m, A[i], A[i + 1]);
   }
 
-  cost = calculate_cost(network, m, desired_outputs, A[L]);
+  cost = calculate_cost(network, m, Y, A[L]);
 
   // Backpropagation and weight updates
   /*
-  (delta^L) = dC/dZ^L = dC/d(Y_hat) * d(Y_hat)/dZ^L = (1/m)(Y_hat - Y) * (Y_hat(1-Y_hat))
+  (delta^L) = dC/dZ^L = dC/d(Y_hat) * d(Y_hat)/dZ^L = (1/m)(Y_hat - Y) * d(Y_hat)/dZ^L
   dC/d(Y_hat) = (1/m) * (Y_hat - Y)
-  d(Y_hat)/dZ^L = Y_hat * (1 - Y_hat)
+  d(Y_hat)/dZ^L = Y_hat * (1 - Y_hat) (sigmoid derivative)
+  d(Y_hat)/dZ^L = 1 - Y_hat^2 (tanh derivative)
 
   dZ_{j,i}/db_{j} = 1
   dC/db^L = delta * dZ/db = delta^L x 1(m x 1) = ∑ delta^L_{:,i}
   dC/dW^L = (delta^L)((A^{L-1})^T)
 
   dC/dA^[l] = dZ^[l+1]/dA^[l] * dC/dZ^[l+1] = (W^[l+1]^T)(delta^[l+1])
-  delta^[l] = dC/dA^[l] * dA^[l]/dZ^[l] = (W^[l+1]^T)(delta^[l+1]) * A^[l] * (1 - A^[l])
+  delta^[l] = dC/dA^[l] * dA^[l]/dZ^[l] = (W^[l+1]^T)(delta^[l+1]) * (1 - A^[l]^2)
   dC/db^[l] = ∑(delta^[l]_{:,i})
   dC/dW^[l] = (delta^[l])(A^[l-1]^T)
   */
@@ -162,7 +173,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     const double *A_Li = A[L] + i * m;
     const double *Y_i = Y + i * m;
     for (size_t j = 0; j < m; j++) {
-      const double value = m_inv * (A_Li[j] - Y_i[j]) * A_Li[j] * (1 - A_Li[j]);
+      const double value = m_inv * (A_Li[j] - Y_i[j]) * (1 - A_Li[j] * A_Li[j]);
       delta_Li[j] = value;
       sum += value;
     }
@@ -186,7 +197,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     }
   }
 
-  // Hidden layers
+  // Hidden layers (1 - L-1)
   for (size_t l = num_layers - 2; l > 0; l--) {
     // dC/dA^[l] = (W^[l+1]^T)(delta^[l+1])
     const size_t in_size = network->neuron_counts[l];
@@ -210,7 +221,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
 
       // delta^l = dC/dA^[l] * dA^[l]/dZ^[l]
       for (size_t k = 0; k < m; k++) {
-        delta_lj[k] *= A_lj[k] * (1 - A_lj[k]);
+        delta_lj[k] *= (1 - A_lj[k] * A_lj[k]);
         sum += delta_lj[k];
       }
 
@@ -240,7 +251,6 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     network->t_weights[i] -= lr * (*dC_dW)[i];
   }
 
-  free(data);
   return cost;
 }
 
@@ -267,7 +277,7 @@ void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t 
   const double (*W)[in_size] = neural_layer_t_weights(network, in_layer + 1);
   const double *b = network->bias + out_offset;
 
-  // A[L+1] = sigmoid(Z[L+1] = W[L+1] * A[L] + b[L+1])
+  // A[L+1] = tanh(Z[L+1] = W[L+1] * A[L] + b[L+1])
   for (size_t i = 0; i < out_size; ++i) {
     double *A_out_i = A_out + i * m;
     for (size_t j = 0; j < m; ++j) {
@@ -284,7 +294,7 @@ void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t 
     }
 
     for (size_t j = 0; j < m; ++j) {
-      A_out_i[j] = neural_sigmoid(A_out_i[j]);
+      A_out_i[j] = tanh(A_out_i[j]);
     }
   }
 }
@@ -351,7 +361,7 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
   }
 
   fprintf(fp, "\nBiases:\n");
-  for (size_t i = 0; i < network->num_hidden_layers + 2; i++) {
+  for (size_t i = 1; i < network->num_hidden_layers + 2; i++) {
     fprintf(fp, "Layer %zu: ", i);
     double *bias = network->bias + neural_layer_offset(network, i);
     for (size_t j = 0; j < network->neuron_counts[i]; j++) {
@@ -399,6 +409,10 @@ void free_neural_network(neural_network_t *network) {
   if (network->bias) {
     free(network->bias);
   }
+  if (network->data) {
+    free(network->data);
+  }
+  network->data = NULL;
   network->neuron_counts = NULL;
   network->output = NULL;
   network->t_weights = NULL;
@@ -433,6 +447,35 @@ static void calculate_output_layer(neural_network_t *network, size_t output_laye
     for (size_t j = 0; j < in_size; j++) {
       sum += t_weights[i][j] * input[j];
     }
-    output[i] = neural_sigmoid(sum);
+    output[i] = tanh(sum);
   }
+}
+
+/**
+ * @brief Allocate memory for the data used in training and inference.
+ *
+ * @param network The neural network for which to allocate data.
+ * @param m The number of training examples.
+ * @return A pointer to the allocated data, or NULL if allocation fails.
+ */
+static char *allocate_data(neural_network_t *network, size_t m) {
+  if (!network || m == 0) {
+    return NULL;
+  }
+
+  const size_t num_layers = network->num_hidden_layers + 2;
+  const size_t Y_items = network->neuron_counts[num_layers - 1] * m;
+  const size_t A_matrices_items = network->total_neurons * m;
+  const size_t delta_matrices_items = network->total_neurons * m;
+  const size_t dC_dW_items = network->total_weights;
+  const size_t size = (Y_items + A_matrices_items + delta_matrices_items + dC_dW_items) * sizeof(double);
+  if (size > network->data_size) {
+    if (network->data) {
+      free(network->data);
+    }
+    network->data_size = size;
+    network->data = malloc(size);
+  }
+
+  return network->data;
 }
