@@ -216,7 +216,8 @@ static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
 
   else {
     if (ant->is_coliding) {
-      face_direction = constrain_angle(ant->rotation + PI);
+      // Vector2 normal = Vector2Normalize(Vector2Subtract(ant->spawn, ant->pos));
+      face_direction = constrain_angle(ant->rotation + PI * delta_time);
     } else {
       face_direction = constrain_angle(ant->rotation + PI / 64 * delta_time);
     }

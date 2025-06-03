@@ -428,7 +428,7 @@ static void train_ants(double fixed_delta) {
         const double *output_ptr = output_vec.data;
         const double error = train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr,
                                                   output_ptr, learning_rate);
-        if (epoch % 5000 == 0) {
+        if (epoch % (MAX(1, ((int)5e6 / ANN_BATCH_SIZE))) == 0) {
           printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
         }
         vec_clear(&input_vec);
@@ -516,5 +516,5 @@ static void reset_simulation() {
                          rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
   }
 
-  random_session = rand() % 3 == 0;
+  random_session = rand() % 3 != 0;
 }
