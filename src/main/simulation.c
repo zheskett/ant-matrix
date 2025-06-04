@@ -10,6 +10,8 @@
 
 static void reset_simulation(void);
 static void train_ants(double fixed_delta);
+static neural_network_t *create_ant_net();
+static void network_train_step(const double *inputs, const double *outputs);
 
 #pragma region setup
 
@@ -46,6 +48,7 @@ double tick_speed = 1.0;
 vec_double_t input_vec;
 vec_double_t output_vec;
 
+ant_t *ant_data = NULL;
 vec_ant_t ant_vec;
 vec_food_t food_vec;
 
@@ -89,7 +92,14 @@ int start(int argc, char **argv) {
 
   int i = 0;
   ant_t *ant = NULL;
-  vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
+  if (ant_data) {
+    vec_foreach(&ant_vec, ant, i) {
+      if (PER_ANT_NETWORK) {
+        free_neural_network(ant->net);
+      }
+    }
+    free(ant_data);
+  }
   vec_deinit(&ant_vec);
 
   food_t *food = NULL;
@@ -257,7 +267,7 @@ void render() {
   food_t *food = NULL;
   int i = 0;
   vec_foreach(&food_vec, food, i) { draw_food(food); }
-  vec_foreach(&ant_vec, ant, i) { draw_ant(ant); }
+  vec_foreach(&ant_vec, ant, i) { ant_draw(ant); }
 
   EndMode2D();
 
@@ -292,16 +302,7 @@ void render() {
 void initialize() {
   srand(time(NULL));
   const size_t neuron_counts[] = ANN_NEURON_COUNTS;
-  ant_network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
-  if (!ant_network) {
-    fprintf(stderr, "Failed to create neural network\n");
-    exit(EXIT_FAILURE);
-  }
-  // Randomize weights and biases
-  const double std = sqrt(6) / sqrt(neuron_counts[0] + neuron_counts[ant_network->num_hidden_layers + 1]);
-  randomize_weights(ant_network, -std, std);
-  randomize_bias(ant_network, -0.01, 0.01);
-
+  ant_network = create_ant_net();
   vec_init(&input_vec);
   vec_init(&output_vec);
 
@@ -314,6 +315,31 @@ void initialize() {
 
   vec_init(&ant_vec);
   vec_init(&food_vec);
+
+  ant_data = malloc(starting_ants * sizeof(ant_t));
+  ant_t *ant_data_ptr = ant_data;
+  if (!ant_data) {
+    fprintf(stderr, "Failed to allocate memory for ants\n");
+    exit(EXIT_FAILURE);
+  }
+  for (int i = 0; i < starting_ants; i++) {
+    ant_t *ant = ant_data_ptr++;
+    if (PER_ANT_NETWORK) {
+      ant->net = create_ant_net();
+    } else {
+      ant->net = NULL;
+    }
+
+    ant->texture = &ant_texture;
+    ant->nearest_food = NULL;
+    ant->spawn = spawn;
+    ant->pos = spawn;
+    ant->rotation = (rand() % 360) * DEG2RAD_D;
+    ant->has_food = false;
+    ant->is_coliding = false;
+
+    vec_push(&ant_vec, ant);
+  }
 
   reset_simulation();
 
@@ -389,7 +415,7 @@ static void train_ants(double fixed_delta) {
     inputs[9] = ant->has_food ? 1.0 : 0.0;
 
     if (training) {
-      ant_logic_t logic = train_update_ant(ant, fixed_delta);
+      ant_logic_t logic = ant_train_update(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
       outputs[0] = cos(logic.angle);
@@ -399,37 +425,20 @@ static void train_ants(double fixed_delta) {
       outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : -1.0;
       outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : -1.0;
 
-      if (logic.action != ANT_STEP_ACTION) {
-        for (int j = 0; j < 40; j++) {
-          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
-        }
-      } else if (inputs[9] > 0) {
-        for (int j = 0; j < 1; j++) {
-          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
-        }
-      } else {
-        vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-        vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
-      }
+      int iterations = 1;
 
-      if (input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS) {
-        const double *input_ptr = input_vec.data;
-        const double *output_ptr = output_vec.data;
-        const double error = train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr,
-                                                  output_ptr, learning_rate);
-        if (epoch % (MAX(1, ((int)2e6 / ANN_BATCH_SIZE))) == 0) {
-          printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
-        }
-        vec_clear(&input_vec);
-        vec_clear(&output_vec);
-        learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
-        epoch++;
+      if (logic.action == ANT_DROP_ACTION) {
+        iterations = 40;
+      } else if (logic.action == ANT_GATHER_ACTION) {
+        iterations = 20;
+      }
+      for (int j = 0; j < iterations; j++) {
+        network_train_step(inputs, outputs);
       }
 
       if (!warp && rand() % 5000 == 0) {
-        const double *pred = run_neural_network(ant_network, inputs);
+        const double *pred;
+        pred = run_neural_network(ant_network, inputs);
         printf("Inputs: ");
         for (int j = 0; j < ANN_INPUTS; j++) {
           printf("%.3f ", inputs[j]);
@@ -465,7 +474,7 @@ static void train_ants(double fixed_delta) {
         choice = 4;
       }
 
-      run_update_ant(ant, logic, fixed_delta);
+      ant_run_update(ant, logic, fixed_delta);
       if (rand() % 2000 == 0) {
         printf("Inputs: ");
         for (int j = 0; j < ANN_INPUTS; j++) {
@@ -487,16 +496,17 @@ static void reset_simulation() {
   int i = 0;
 
   // Destroy all ants and food
-  vec_foreach(&ant_vec, ant, i) { destroy_ant(ant); }
   vec_foreach(&food_vec, food, i) { destroy_food(food); }
-  vec_clear(&ant_vec);
   vec_clear(&food_vec);
 
   random_session = rand() % 3 != 0;
 
-  // Create ants
-  for (int i = 0; i < starting_ants; i++) {
-    vec_push(&ant_vec, create_ant(spawn, spawn, &ant_texture, (rand() % 360) * DEG2RAD_D));
+  // Position ants at spawn
+  vec_foreach(&ant_vec, ant, i) {
+    ant->pos = spawn;
+    ant->rotation = (rand() % 360) * DEG2RAD_D;
+    ant->has_food = false;
+    ant->is_coliding = false;
   }
 
   // Create food away from ants
@@ -511,5 +521,39 @@ static void reset_simulation() {
                create_food(food_pos, food_radius, food_detection_radius,
                            rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
     }
+  }
+}
+
+static neural_network_t *create_ant_net() {
+  const size_t neuron_counts[] = ANN_NEURON_COUNTS;
+  neural_network_t *network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
+  if (!network) {
+    fprintf(stderr, "Failed to create neural network\n");
+    exit(EXIT_FAILURE);
+  }
+  // Randomize weights and biases
+  const double std = sqrt(6) / sqrt(neuron_counts[0] + neuron_counts[network->num_hidden_layers + 1]);
+  randomize_weights(network, -std, std);
+  randomize_bias(network, -0.01, 0.01);
+
+  return network;
+}
+
+static void network_train_step(const double *inputs, const double *outputs) {
+  vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+  vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
+
+  if (input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS) {
+    const double *input_ptr = input_vec.data;
+    const double *output_ptr = output_vec.data;
+    const double error =
+        train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr, output_ptr, learning_rate);
+    if (epoch % (MAX(1, ((int)2e6 / ANN_BATCH_SIZE))) == 0) {
+      printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
+    }
+    vec_clear(&input_vec);
+    vec_clear(&output_vec);
+    learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
+    epoch++;
   }
 }

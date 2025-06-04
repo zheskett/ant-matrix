@@ -6,6 +6,9 @@
 #include "entities/food.h"
 #include "util/util.h"
 
+// Multiple networks per ant
+#define PER_ANT_NETWORK 0
+
 #define LEARN_RATE 0.16
 #define LEARN_RATE_DECAY 0.99997
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding

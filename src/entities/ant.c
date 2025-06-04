@@ -8,7 +8,7 @@
 
 static ant_logic_t ant_decision(ant_t* ant, double delta_time);
 
-ant_t* create_ant(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation) {
+ant_t* ant_create(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
@@ -16,6 +16,7 @@ ant_t* create_ant(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double r
 
   ant->texture = texture;
   ant->nearest_food = NULL;
+  ant->net = NULL;
   ant->pos = pos;
   ant->spawn = spawn;
   ant->rotation = rotation;
@@ -32,7 +33,7 @@ void ant_update_nearest_food(ant_t* ant) {
 
   ant->nearest_food = NULL;
 
-  circled_t detector_circle = get_ant_detector_circle(ant);
+  circled_t detector_circle = ant_get_detector_circle(ant);
   double nearest_distance = DBL_MAX;
   for (int i = 0; i < food_vec.length; i++) {
     food_t* food = food_vec.data[i];
@@ -50,7 +51,7 @@ void ant_update_nearest_food(ant_t* ant) {
   }
 }
 
-void run_update_ant(ant_t* ant, ant_logic_t logic, double delta_time) {
+void ant_run_update(ant_t* ant, ant_logic_t logic, double delta_time) {
   if (!ant) {
     return;
   }
@@ -69,18 +70,18 @@ void run_update_ant(ant_t* ant, ant_logic_t logic, double delta_time) {
   }
 }
 
-ant_logic_t train_update_ant(ant_t* ant, double delta_time) {
+ant_logic_t ant_train_update(ant_t* ant, double delta_time) {
   if (!ant) {
     return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
 
   ant_logic_t logic = ant_decision(ant, delta_time);
-  run_update_ant(ant, logic, delta_time);
+  ant_run_update(ant, logic, delta_time);
 
   return logic;
 }
 
-void draw_ant(ant_t* ant) {
+void ant_draw(ant_t* ant) {
   if (!ant) {
     return;
   }
@@ -91,18 +92,22 @@ void draw_ant(ant_t* ant) {
                           (ant->texture->height * ANT_SCALE)};
   DrawTexturePro(*ant->texture, source, dest, center, ant->rotation * RAD2DEG, WHITE);
 
-  const circled_t detector_circle = get_ant_detector_circle(ant);
+  const circled_t detector_circle = ant_get_detector_circle(ant);
   DrawCircleV(v2d_to_v2(detector_circle.center), detector_circle.radius,
               ant->has_food ? (Color){0, 255, 0, 128} : (Color){255, 0, 0, 128});
 }
 
-void destroy_ant(ant_t* ant) {
-  if (ant) {
-    free(ant);
+void ant_free(ant_t* ant) {
+  if (!ant) {
+    return;
   }
+  if (ant->net) {
+    free_neural_network(ant->net);
+  }
+  free(ant);
 }
 
-circled_t get_ant_detector_circle(ant_t* ant) {
+circled_t ant_get_detector_circle(ant_t* ant) {
   if (!ant) {
     return (circled_t){(vector2d_t){0.0, 0.0}, 0.0};
   }

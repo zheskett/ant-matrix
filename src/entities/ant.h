@@ -3,6 +3,7 @@
 #define ANT_H
 
 #include "entities/food.h"
+#include "neural/nn.h"
 #include "util/util.h"
 #include "vec.h"
 
@@ -26,6 +27,7 @@ typedef struct {
 typedef struct {
   Texture2D* texture;
   food_t* nearest_food;
+  neural_network_t* net;
   vector2d_t spawn;
   vector2d_t pos;
   double rotation;
@@ -43,14 +45,14 @@ typedef vec_t(ant_t*) vec_ant_t;
  * @param rotation The rotation of the ant in radians.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
-ant_t* create_ant(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation);
+ant_t* ant_create(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation);
 
 /**
  * @brief Draw the ant entity.
  *
  * @param ant The ant entity to draw.
  */
-void draw_ant(ant_t* ant);
+void ant_draw(ant_t* ant);
 
 /**
  * @brief Update the ant's nearest food.
@@ -65,7 +67,7 @@ void ant_update_nearest_food(ant_t* ant);
  * @param ant The ant entity to update.
  * @param delta_time The time since the last update.
  */
-ant_logic_t train_update_ant(ant_t* ant, double delta_time);
+ant_logic_t ant_train_update(ant_t* ant, double delta_time);
 
 /**
  * @brief Run the ant's update logic.
@@ -74,14 +76,14 @@ ant_logic_t train_update_ant(ant_t* ant, double delta_time);
  * @param logic The ant's logic to run.
  * @param delta_time The time since the last update.
  */
-void run_update_ant(ant_t* ant, ant_logic_t logic, double delta_time);
+void ant_run_update(ant_t* ant, ant_logic_t logic, double delta_time);
 
 /**
  * @brief Destroy an ant entity and free its resources.
  *
  * @param ant The ant entity to destroy.
  */
-void destroy_ant(ant_t* ant);
+void ant_free(ant_t* ant);
 
 /**
  * @brief Get the circle representing the ant's detector.
@@ -89,7 +91,7 @@ void destroy_ant(ant_t* ant);
  * @param ant The ant entity.
  * @return The circle representing the ant's detector.
  */
-circled_t get_ant_detector_circle(ant_t* ant);
+circled_t ant_get_detector_circle(ant_t* ant);
 
 // Behavior functions
 
