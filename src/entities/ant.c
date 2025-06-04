@@ -1,12 +1,13 @@
 #include "ant.h"
 
+#include <float.h>
+
 #include "main/simulation.h"
 #include "raylib.h"
-#include "raymath.h"
 
-static ant_logic_t ant_decision(ant_t* ant, float delta_time);
+static ant_logic_t ant_decision(ant_t* ant, double delta_time);
 
-ant_t* create_ant(Vector2 pos, Vector2 spawn, Texture2D* texture, double rotation) {
+ant_t* create_ant(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation) {
   ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
@@ -30,12 +31,12 @@ void ant_update_nearest_food(ant_t* ant) {
 
   ant->nearest_food = NULL;
 
-  Circle detector_circle = get_ant_detector_circle(ant);
-  float nearest_distance = MAXFLOAT;
+  circled_t detector_circle = get_ant_detector_circle(ant);
+  double nearest_distance = DBL_MAX;
   for (int i = 0; i < food_vec.length; i++) {
     food_t* food = food_vec.data[i];
-    if (CheckCollisionCircles(detector_circle.center, detector_circle.radius, food->pos, food->detection_radius)) {
-      const float distance = Vector2DistanceSqr(ant->pos, food->pos);
+    if (circle_collide_circle(detector_circle, (circled_t){food->pos, food->detection_radius})) {
+      const double distance = v2d_distance_sqr(ant->pos, food->pos);
       if (distance < nearest_distance) {
         nearest_distance = distance;
         ant->nearest_food = food;
@@ -44,7 +45,7 @@ void ant_update_nearest_food(ant_t* ant) {
   }
 }
 
-void run_update_ant(ant_t* ant, ant_logic_t logic, float delta_time) {
+void run_update_ant(ant_t* ant, ant_logic_t logic, double delta_time) {
   if (!ant) {
     return;
   }
@@ -63,9 +64,9 @@ void run_update_ant(ant_t* ant, ant_logic_t logic, float delta_time) {
   }
 }
 
-ant_logic_t train_update_ant(ant_t* ant, float delta_time) {
+ant_logic_t train_update_ant(ant_t* ant, double delta_time) {
   if (!ant) {
-    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
+    return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
 
   ant_logic_t logic = ant_decision(ant, delta_time);
@@ -85,8 +86,8 @@ void draw_ant(ant_t* ant) {
                           (ant->texture->height * ANT_SCALE)};
   DrawTexturePro(*ant->texture, source, dest, center, ant->rotation * RAD2DEG, WHITE);
 
-  const Circle detector_circle = get_ant_detector_circle(ant);
-  DrawCircleV(detector_circle.center, detector_circle.radius,
+  const circled_t detector_circle = get_ant_detector_circle(ant);
+  DrawCircleV(v2d_to_v2(detector_circle.center), detector_circle.radius,
               ant->has_food ? (Color){0, 255, 0, 128} : (Color){255, 0, 0, 128});
 }
 
@@ -96,17 +97,17 @@ void destroy_ant(ant_t* ant) {
   }
 }
 
-Circle get_ant_detector_circle(ant_t* ant) {
+circled_t get_ant_detector_circle(ant_t* ant) {
   if (!ant) {
-    return (Circle){(Vector2){0.0f, 0.0f}, 0.0f};
+    return (circled_t){(vector2d_t){0.0, 0.0}, 0.0};
   }
 
   // Circle center position, accounting for rotation, position at head of the ant
-  Vector2 circle_pos = {
-      ant->pos.x + (ANT_DETECTOR_OFFSET * ANT_SCALE) * cosf(ant->rotation),
-      ant->pos.y + (ANT_DETECTOR_OFFSET * ANT_SCALE) * sinf(ant->rotation),
+  vector2d_t circle_pos = {
+      ant->pos.x + (ANT_DETECTOR_OFFSET * ANT_SCALE) * cos(ant->rotation),
+      ant->pos.y + (ANT_DETECTOR_OFFSET * ANT_SCALE) * sin(ant->rotation),
   };
-  const Circle circle = {circle_pos, ANT_DETECTOR_RADIUS * ANT_SCALE};
+  const circled_t circle = {circle_pos, ANT_DETECTOR_RADIUS * ANT_SCALE};
   return circle;
 }
 
@@ -118,18 +119,18 @@ void ant_set_angle(ant_t* ant, double angle) {
   ant->rotation = constrain_angle(angle);
 }
 
-bool ant_step(ant_t* ant, float delta_time) {
+bool ant_step(ant_t* ant, double delta_time) {
   if (!ant) {
     return false;
   }
 
-  ant->pos.x += ANT_SPEED * cosf(ant->rotation) * delta_time;
-  ant->pos.y += ANT_SPEED * sinf(ant->rotation) * delta_time;
+  ant->pos.x += ANT_SPEED * cos(ant->rotation) * delta_time;
+  ant->pos.y += ANT_SPEED * sin(ant->rotation) * delta_time;
 
   // Check for boundary collisions
   if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
-    ant->pos.x = fmaxf(0, fminf(WORLD_W, ant->pos.x));
-    ant->pos.y = fmaxf(0, fminf(WORLD_H, ant->pos.y));
+    ant->pos.x = fmax(0.0, fmin(WORLD_W, ant->pos.x));
+    ant->pos.y = fmax(0.0, fmin(WORLD_H, ant->pos.y));
 
     ant->is_coliding = true;
     return false;
@@ -149,7 +150,7 @@ bool ant_gather(ant_t* ant) {
   }
 
   // Check if the ant has reached the food
-  if (CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius)) {
+  if (circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos)) {
     grab_food(ant->nearest_food);
     ant->has_food = true;
     if (ant->nearest_food->amount <= 0) {
@@ -169,7 +170,7 @@ bool ant_drop(ant_t* ant) {
   }
 
   // Check if the ant has reached the spawn point
-  if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
+  if (circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos)) {
     ant->has_food = false;
     return true;
   }
@@ -183,21 +184,21 @@ bool ant_drop(ant_t* ant) {
  * @param ant Pointer to the ant entity.
  * @param delta_time Time since the last update.
  */
-static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
+static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
   if (!ant) {
-    return (ant_logic_t){ANT_STEP_ACTION, 0.0f};
+    return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
 
-  float face_direction = 0.0f;
+  double face_direction = 0.0;
   ant_action_t action = ANT_STEP_ACTION;
 
   // Collect food
   if (ant->has_food) {
     // Move towards the spawn point
-    Vector2 direction = Vector2Normalize(Vector2Subtract(ant->spawn, ant->pos));
-    face_direction = constrain_angle(atan2f(direction.y, direction.x));
+    vector2d_t direction = v2d_normalize(v2d_subtract(ant->spawn, ant->pos));
+    face_direction = constrain_angle(atan2(direction.y, direction.x));
 
-    if (CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS)) {
+    if (circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos)) {
       action = ANT_DROP_ACTION;
       face_direction = constrain_angle(ant->rotation + M_PI_2);
     }
@@ -206,10 +207,10 @@ static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
   // Gather food
   else if (ant->nearest_food) {
     // Move towards the closest food
-    Vector2 direction = Vector2Normalize(Vector2Subtract(ant->nearest_food->pos, ant->pos));
-    face_direction = constrain_angle(atan2f(direction.y, direction.x));
+    vector2d_t direction = v2d_normalize(v2d_subtract(ant->nearest_food->pos, ant->pos));
+    face_direction = constrain_angle(atan2(direction.y, direction.x));
 
-    if (CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius)) {
+    if (circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos)) {
       action = ANT_GATHER_ACTION;
     }
   }
@@ -217,9 +218,9 @@ static ant_logic_t ant_decision(ant_t* ant, float delta_time) {
   else {
     if (ant->is_coliding) {
       // Vector2 normal = Vector2Normalize(Vector2Subtract(ant->spawn, ant->pos));
-      face_direction = constrain_angle(ant->rotation + PI * delta_time);
+      face_direction = constrain_angle(ant->rotation + M_PI * delta_time);
     } else {
-      face_direction = constrain_angle(ant->rotation + PI / 64 * delta_time);
+      face_direction = constrain_angle(ant->rotation + M_PI / 64.0 * delta_time);
     }
   }
 

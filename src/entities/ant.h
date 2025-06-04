@@ -3,15 +3,14 @@
 #define ANT_H
 
 #include "entities/food.h"
-#include "raylib.h"
 #include "util/util.h"
 #include "vec.h"
 
-#define ANT_SCALE 0.25f
-#define ANT_DETECTOR_RADIUS 50.0f
-#define ANT_DETECTOR_OFFSET 70.0f
-#define ANT_SPEED 100.0f
-#define ANT_SPAWN_RADIUS 50.0f
+#define ANT_SCALE 0.25
+#define ANT_DETECTOR_RADIUS 50.0
+#define ANT_DETECTOR_OFFSET 70.0
+#define ANT_SPEED 100.0
+#define ANT_SPAWN_RADIUS 50.0
 
 typedef enum {
   ANT_STEP_ACTION,
@@ -21,14 +20,14 @@ typedef enum {
 
 typedef struct {
   ant_action_t action;
-  float angle;
+  double angle;
 } ant_logic_t;
 
 typedef struct {
   Texture2D* texture;
   food_t* nearest_food;
-  Vector2 spawn;
-  Vector2 pos;
+  vector2d_t spawn;
+  vector2d_t pos;
   double rotation;
   bool has_food;
   bool is_coliding;
@@ -44,7 +43,7 @@ typedef vec_t(ant_t*) vec_ant_t;
  * @param rotation The rotation of the ant in radians.
  * @return A pointer to the newly created ant entity, or NULL on failure.
  */
-ant_t* create_ant(Vector2 pos, Vector2 spawn, Texture2D* texture, double rotation);
+ant_t* create_ant(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation);
 
 /**
  * @brief Draw the ant entity.
@@ -66,7 +65,7 @@ void ant_update_nearest_food(ant_t* ant);
  * @param ant The ant entity to update.
  * @param delta_time The time since the last update.
  */
-ant_logic_t train_update_ant(ant_t* ant, float delta_time);
+ant_logic_t train_update_ant(ant_t* ant, double delta_time);
 
 /**
  * @brief Run the ant's update logic.
@@ -75,7 +74,7 @@ ant_logic_t train_update_ant(ant_t* ant, float delta_time);
  * @param logic The ant's logic to run.
  * @param delta_time The time since the last update.
  */
-void run_update_ant(ant_t* ant, ant_logic_t logic, float delta_time);
+void run_update_ant(ant_t* ant, ant_logic_t logic, double delta_time);
 
 /**
  * @brief Destroy an ant entity and free its resources.
@@ -90,7 +89,7 @@ void destroy_ant(ant_t* ant);
  * @param ant The ant entity.
  * @return The circle representing the ant's detector.
  */
-Circle get_ant_detector_circle(ant_t* ant);
+circled_t get_ant_detector_circle(ant_t* ant);
 
 // Behavior functions
 
@@ -110,7 +109,7 @@ void ant_set_angle(ant_t* ant, double angle);
  *
  * @return true if the ant moved, false otherwise.
  */
-bool ant_step(ant_t* ant, float delta_time);
+bool ant_step(ant_t* ant, double delta_time);
 
 /**
  * @brief Gather food.

@@ -1,13 +1,13 @@
 #pragma once
 #ifndef FOOD_H
 #define FOOD_H
-#include "raylib.h"
+#include "util/util.h"
 #include "vec.h"
 
 typedef struct {
-  Vector2 pos;
-  float radius;
-  float detection_radius;
+  vector2d_t pos;
+  double radius;
+  double detection_radius;
   int amount;
 } food_t;
 
@@ -22,7 +22,7 @@ typedef vec_t(food_t*) vec_food_t;
  * @param amount Amount of food
  * @return food_t* Pointer to the created food object
  */
-food_t* create_food(Vector2 pos, float radius, float detection_radius, int amount);
+food_t* create_food(vector2d_t pos, double radius, double detection_radius, int amount);
 
 /**
  * @brief Update the food object
@@ -30,7 +30,7 @@ food_t* create_food(Vector2 pos, float radius, float detection_radius, int amoun
  * @param food Pointer to the food object
  * @param delta_time Delta time
  */
-void update_food(food_t* food, float delta_time);
+void update_food(food_t* food, double delta_time);
 
 /**
  * @brief Draw the food object

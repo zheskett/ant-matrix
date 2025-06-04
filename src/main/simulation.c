@@ -42,6 +42,8 @@ bool auto_reset = true;
 bool warp = false;
 bool random_session = false;
 
+double tick_speed = 1.0;
+
 vec_double_t input_vec;
 vec_double_t output_vec;
 
@@ -51,22 +53,18 @@ vec_food_t food_vec;
 int epoch = 0;
 const int starting_ants = 100;
 const int starting_food = 10;
-const int food_radius = 40;
-const int food_detection_radius = 400;
-const int min_food_distance = 500;
 const int max_starting_food_amount = 200;
 const int min_starting_food_amount = 50;
-
-double tick_speed = 1.0;
+const double food_radius = 40;
+const double food_detection_radius = 400;
+const double min_food_distance = 500;
+const vector2d_t spawn = {WORLD_W / 2, WORLD_H / 2};
 
 int window_w = 1920;
 int window_h = 1080;
-
 float zoom = 1.0f;
 Vector2 target = {WORLD_W / 2.0f, WORLD_H / 2.0f};
 Vector2 prev_mouse_pos = {0, 0};
-const Vector2 spawn = {WORLD_W / 2, WORLD_H / 2};
-
 RenderTexture2D offscreen;
 Texture2D ant_texture;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
@@ -186,7 +184,7 @@ void update() {
 
     tick_speed = fmin(WARP_SPEED * 100, tick_speed);
   } else {
-    tick_speed = 1.0f;
+    tick_speed = 1.0;
   }
 
   if (reset) {
@@ -229,7 +227,7 @@ void fixed_update(double fixed_delta) {
     ant_t *ant = NULL;
 
     vec_foreach(&ant_vec, ant, i) {
-      ant->rotation = (rand() % 360) * DEG2RAD;
+      ant->rotation = (rand() % 360) * DEG2RAD_D;
       ant->pos.x = rand() % WORLD_W;
       ant->pos.y = rand() % WORLD_H;
       ant->has_food = rand() % 3 == 0;
@@ -254,7 +252,7 @@ void render() {
   BeginMode2D(cam);
   ClearBackground(BROWN);
 
-  DrawCircleV(spawn, ANT_SPAWN_RADIUS, DARKBLUE);
+  DrawCircleV(v2d_to_v2(spawn), ANT_SPAWN_RADIUS, DARKBLUE);
 
   ant_t *ant = NULL;
   food_t *food = NULL;
@@ -368,18 +366,19 @@ static void train_ants(double fixed_delta) {
     // Update the neural network
     double inputs[ANN_INPUTS] = {0};
 
-    const Vector2 spawn_vector = Vector2Subtract(ant->spawn, ant->pos);
-    const double spawn_vector_length = Vector2Length(spawn_vector);
+    const vector2d_t spawn_vector = v2d_subtract(ant->spawn, ant->pos);
+    const double spawn_vector_length = v2d_length(spawn_vector);
     inputs[0] = cos(ant->rotation);
     inputs[1] = sin(ant->rotation);
-    inputs[2] = CheckCollisionPointCircle(ant->pos, ant->spawn, ANT_SPAWN_RADIUS) ? 1.0 : 0.0;
+    inputs[2] = circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos) ? 1.0 : 0.0;
     inputs[3] = spawn_vector_length > 1e-9 ? spawn_vector.x / spawn_vector_length : -cos(ant->rotation);
     inputs[4] = spawn_vector_length > 1e-9 ? spawn_vector.y / spawn_vector_length : -sin(ant->rotation);
 
     if (ant->nearest_food) {
-      const Vector2 food_vector = Vector2Subtract(ant->nearest_food->pos, ant->pos);
-      const double food_vector_length = Vector2Length(food_vector);
-      inputs[5] = CheckCollisionPointCircle(ant->pos, ant->nearest_food->pos, ant->nearest_food->radius) ? 1.0 : 0.0;
+      const vector2d_t food_vector = v2d_subtract(ant->nearest_food->pos, ant->pos);
+      const double food_vector_length = v2d_length(food_vector);
+      inputs[5] =
+          circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos) ? 1.0 : 0.0;
       inputs[6] = food_vector_length > 1e-9 ? food_vector.x / food_vector_length : -cos(ant->rotation);
       inputs[7] = food_vector_length > 1e-9 ? food_vector.y / food_vector_length : -sin(ant->rotation);
     } else {
@@ -501,13 +500,13 @@ static void reset_simulation() {
 
   // Create ants
   for (int i = 0; i < starting_ants; i++) {
-    vec_push(&ant_vec, create_ant(spawn, spawn, &ant_texture, (float)(rand() % 360) * DEG2RAD));
+    vec_push(&ant_vec, create_ant(spawn, spawn, &ant_texture, (rand() % 360) * DEG2RAD_D));
   }
 
   // Create food away from ants
   for (int i = 0; i < starting_food; i++) {
-    Vector2 food_pos = spawn;
-    while (Vector2Distance(spawn, food_pos) < min_food_distance) {
+    vector2d_t food_pos = spawn;
+    while (v2d_distance(spawn, food_pos) < min_food_distance) {
       food_pos.x = rand() % WORLD_W;
       food_pos.y = rand() % WORLD_H;
     }

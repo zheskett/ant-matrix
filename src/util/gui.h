@@ -1,4 +1,6 @@
 #pragma once
+#ifndef GUI_H
+#define GUI_H
 
 #include "raylib.h"
 
@@ -18,3 +20,5 @@
 bool gui_draw_button(Vector2 mouse_pos, Rectangle bounds, const char* text);
 bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char* text, bool checked);
 void gui_draw_label(Vector2 position, const char* text);
+
+#endif /* GUI_H */
