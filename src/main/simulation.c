@@ -51,7 +51,7 @@ vec_ant_t ant_vec;
 vec_food_t food_vec;
 
 int epoch = 0;
-const int starting_ants = 100;
+const int starting_ants = 1000;
 const int starting_food = 10;
 const int max_starting_food_amount = 200;
 const int min_starting_food_amount = 50;

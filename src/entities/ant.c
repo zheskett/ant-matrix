@@ -1,6 +1,7 @@
 #include "ant.h"
 
 #include <float.h>
+#include <math.h>
 
 #include "main/simulation.h"
 #include "raylib.h"
@@ -35,6 +36,10 @@ void ant_update_nearest_food(ant_t* ant) {
   double nearest_distance = DBL_MAX;
   for (int i = 0; i < food_vec.length; i++) {
     food_t* food = food_vec.data[i];
+    bool collide = circle_collide_circle(detector_circle, (circled_t){food->pos, food->detection_radius});
+    if (!collide) {
+      continue;
+    }
     if (circle_collide_circle(detector_circle, (circled_t){food->pos, food->detection_radius})) {
       const double distance = v2d_distance_sqr(ant->pos, food->pos);
       if (distance < nearest_distance) {
@@ -217,10 +222,9 @@ static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
 
   else {
     if (ant->is_coliding) {
-      // Vector2 normal = Vector2Normalize(Vector2Subtract(ant->spawn, ant->pos));
       face_direction = constrain_angle(ant->rotation + M_PI * delta_time);
     } else {
-      face_direction = constrain_angle(ant->rotation + M_PI / 64.0 * delta_time);
+      face_direction = constrain_angle(ant->rotation + (M_PI / 64.0) * delta_time);
     }
   }
 

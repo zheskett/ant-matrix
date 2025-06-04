@@ -1,5 +1,6 @@
 #include "neural/nn.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -198,7 +199,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   }
 
   // Hidden layers (1 - L-1)
-  for (size_t l = num_layers - 2; l > 0; l--) {
+  for (size_t l = num_layers - 2; l >= 1; l--) {
     // dC/dA^[l] = (W^[l+1]^T)(delta^[l+1])
     const size_t in_size = network->neuron_counts[l];
     const size_t out_size = network->neuron_counts[l + 1];
