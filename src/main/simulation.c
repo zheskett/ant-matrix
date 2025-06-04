@@ -25,11 +25,10 @@ static void train_ants(double fixed_delta);
  * 7: food delta sin
  * 8: near food
  * 9: has food
- * 10: is colliding
  *
  * OUTPUT:
- * 0: angle cos
- * 1: angle sin
+ * 0: change in angle cos
+ * 1: change in angle sin
  * 2: step
  * 3: gather
  * 4: drop
@@ -51,13 +50,13 @@ vec_ant_t ant_vec;
 vec_food_t food_vec;
 
 int epoch = 0;
-const int starting_ants = 1000;
+const int starting_ants = 200;
 const int starting_food = 10;
 const int max_starting_food_amount = 200;
 const int min_starting_food_amount = 50;
 const double food_radius = 40;
-const double food_detection_radius = 400;
-const double min_food_distance = 500;
+const double food_detection_radius = 300;
+const double min_food_distance = 400;
 const vector2d_t spawn = {WORLD_W / 2, WORLD_H / 2};
 
 int window_w = 1920;
@@ -230,8 +229,8 @@ void fixed_update(double fixed_delta) {
       ant->rotation = (rand() % 360) * DEG2RAD_D;
       ant->pos.x = rand() % WORLD_W;
       ant->pos.y = rand() % WORLD_H;
-      ant->has_food = rand() % 3 == 0;
-      ant->is_coliding = rand() % 10 == 0;
+      ant->has_food = rand() % 4 == 0;
+      ant->is_coliding = false;
     }
   }
   train_ants(fixed_delta);
@@ -292,8 +291,8 @@ void render() {
 
 void initialize() {
   srand(time(NULL));
-  const size_t neuron_counts[] = {ANN_INPUTS, ANN_HIDDEN_NODES, ANN_HIDDEN_NODES, ANN_OUTPUTS};
-  ant_network = create_neural_network(ANN_HIDDEN_LAYERS, neuron_counts);
+  const size_t neuron_counts[] = ANN_NEURON_COUNTS;
+  ant_network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
   if (!ant_network) {
     fprintf(stderr, "Failed to create neural network\n");
     exit(EXIT_FAILURE);
@@ -388,7 +387,6 @@ static void train_ants(double fixed_delta) {
 
     inputs[8] = ant->nearest_food ? 1.0 : 0.0;
     inputs[9] = ant->has_food ? 1.0 : 0.0;
-    inputs[10] = ant->is_coliding ? 1.0 : 0.0;
 
     if (training) {
       ant_logic_t logic = train_update_ant(ant, fixed_delta);
@@ -396,17 +394,13 @@ static void train_ants(double fixed_delta) {
       double outputs[ANN_OUTPUTS] = {0};
       outputs[0] = cos(logic.angle);
       outputs[1] = sin(logic.angle);
-      outputs[2] = logic.action == ANT_STEP_ACTION ? 1.0 : -1.0;
+      // 0.9 to prevent picking step action when other actions should be taken
+      outputs[2] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
       outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : -1.0;
       outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : -1.0;
 
       if (logic.action != ANT_STEP_ACTION) {
         for (int j = 0; j < 40; j++) {
-          vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-          vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
-        }
-      } else if (inputs[10] > 0) {
-        for (int j = 0; j < 10; j++) {
           vec_pusharr(&input_vec, inputs, ANN_INPUTS);
           vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
         }
@@ -498,22 +492,24 @@ static void reset_simulation() {
   vec_clear(&ant_vec);
   vec_clear(&food_vec);
 
+  random_session = rand() % 3 != 0;
+
   // Create ants
   for (int i = 0; i < starting_ants; i++) {
     vec_push(&ant_vec, create_ant(spawn, spawn, &ant_texture, (rand() % 360) * DEG2RAD_D));
   }
 
   // Create food away from ants
-  for (int i = 0; i < starting_food; i++) {
-    vector2d_t food_pos = spawn;
-    while (v2d_distance(spawn, food_pos) < min_food_distance) {
-      food_pos.x = rand() % WORLD_W;
-      food_pos.y = rand() % WORLD_H;
+  if (!random_session || rand() % 2 == 0) {
+    for (int i = 0; i < starting_food; i++) {
+      vector2d_t food_pos = spawn;
+      while (v2d_distance(spawn, food_pos) < min_food_distance) {
+        food_pos.x = (rand() % WORLD_H) + spawn.x / 2;
+        food_pos.y = rand() % WORLD_H;
+      }
+      vec_push(&food_vec,
+               create_food(food_pos, food_radius, food_detection_radius,
+                           rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
     }
-    vec_push(&food_vec,
-             create_food(food_pos, food_radius, food_detection_radius,
-                         rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
   }
-
-  random_session = rand() % 3 != 0;
 }

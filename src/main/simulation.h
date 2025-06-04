@@ -6,17 +6,17 @@
 #include "entities/food.h"
 #include "util/util.h"
 
-#define LEARN_RATE 0.15
-#define LEARN_RATE_DECAY 0.99999
+#define LEARN_RATE 0.16
+#define LEARN_RATE_DECAY 0.99997
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
-#define ANN_INPUTS 11
+#define ANN_INPUTS 10
 
 // 3 actions, 1 angle (sin/cos)
 #define ANN_OUTPUTS 5
-#define ANN_BATCH_SIZE 1000
 
-#define ANN_HIDDEN_LAYERS 2
-#define ANN_HIDDEN_NODES 16
+#define ANN_NEURON_COUNTS {ANN_INPUTS, 16, 16, ANN_OUTPUTS}
+
+#define ANN_BATCH_SIZE 1000
 
 #define TARGET_FPS 0
 #define TICK_RATE 30

@@ -121,7 +121,7 @@ void ant_set_angle(ant_t* ant, double angle) {
     return;
   }
 
-  ant->rotation = constrain_angle(angle);
+  ant->rotation = constrain_angle(ant->rotation + angle);
 }
 
 bool ant_step(ant_t* ant, double delta_time) {
@@ -132,13 +132,16 @@ bool ant_step(ant_t* ant, double delta_time) {
   ant->pos.x += ANT_SPEED * cos(ant->rotation) * delta_time;
   ant->pos.y += ANT_SPEED * sin(ant->rotation) * delta_time;
 
-  // Check for boundary collisions
-  if (ant->pos.x < 0 || ant->pos.x > WORLD_W || ant->pos.y < 0 || ant->pos.y > WORLD_H) {
-    ant->pos.x = fmax(0.0, fmin(WORLD_W, ant->pos.x));
-    ant->pos.y = fmax(0.0, fmin(WORLD_H, ant->pos.y));
-
-    ant->is_coliding = true;
-    return false;
+  // Wrap around the world
+  if (ant->pos.x < 0) {
+    ant->pos.x += WORLD_W;
+  } else if (ant->pos.x >= WORLD_W) {
+    ant->pos.x -= WORLD_W;
+  }
+  if (ant->pos.y < 0) {
+    ant->pos.y += WORLD_H;
+  } else if (ant->pos.y >= WORLD_H) {
+    ant->pos.y -= WORLD_H;
   }
 
   ant->is_coliding = false;
@@ -201,11 +204,11 @@ static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
   if (ant->has_food) {
     // Move towards the spawn point
     vector2d_t direction = v2d_normalize(v2d_subtract(ant->spawn, ant->pos));
-    face_direction = constrain_angle(atan2(direction.y, direction.x));
+    face_direction = atan2(direction.y, direction.x);
 
     if (circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos)) {
       action = ANT_DROP_ACTION;
-      face_direction = constrain_angle(ant->rotation + M_PI_2);
+      face_direction = ant->rotation + M_PI_2;
     }
   }
 
@@ -213,7 +216,7 @@ static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
   else if (ant->nearest_food) {
     // Move towards the closest food
     vector2d_t direction = v2d_normalize(v2d_subtract(ant->nearest_food->pos, ant->pos));
-    face_direction = constrain_angle(atan2(direction.y, direction.x));
+    face_direction = atan2(direction.y, direction.x);
 
     if (circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos)) {
       action = ANT_GATHER_ACTION;
@@ -222,11 +225,11 @@ static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
 
   else {
     if (ant->is_coliding) {
-      face_direction = constrain_angle(ant->rotation + M_PI * delta_time);
+      face_direction = ant->rotation + M_PI * delta_time;
     } else {
-      face_direction = constrain_angle(ant->rotation + (M_PI / 64.0) * delta_time);
+      face_direction = ant->rotation + (M_PI / 64.0) * delta_time;
     }
   }
 
-  return (ant_logic_t){action, face_direction};
+  return (ant_logic_t){action, constrain_angle(face_direction - ant->rotation)};
 }
