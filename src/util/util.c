@@ -43,5 +43,6 @@ vector2d_t v2d_normalize(vector2d_t v) {
 bool circle_collide_point(circled_t c, vector2d_t p) { return v2d_distance_sqr(p, c.center) <= (c.radius * c.radius); }
 
 bool circle_collide_circle(circled_t a, circled_t b) {
-  return v2d_distance_sqr(a.center, b.center) <= (a.radius + b.radius) * (a.radius + b.radius);
+  const double radius_sum = a.radius + b.radius;
+  return v2d_distance_sqr(a.center, b.center) <= radius_sum * radius_sum;
 }

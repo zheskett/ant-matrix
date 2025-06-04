@@ -474,13 +474,16 @@ static char *allocate_data(neural_network_t *network, size_t m) {
   const size_t dC_dW_items = network->total_weights;
   const size_t size = (Y_items + A_matrices_items + delta_matrices_items + dC_dW_items) * sizeof(double);
   if (size > network->data_size) {
-    network->data_size = size;
-    char *ptr = realloc(network->data, size);
-    if (!ptr) {
+    if (network->data) {
+      free(network->data);
+    }
+    network->data = malloc(size);
+    if (!network->data) {
       network->data_size = 0;
       return NULL;
     }
-    network->data = ptr;
+
+    network->data_size = size;
   }
 
   return network->data;

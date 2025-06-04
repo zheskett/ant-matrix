@@ -7,7 +7,7 @@
 #include "util/util.h"
 
 #define LEARN_RATE 0.15
-#define LEARN_RATE_DECAY 0.999995
+#define LEARN_RATE_DECAY 0.99999
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 11
 

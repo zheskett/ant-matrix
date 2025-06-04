@@ -358,7 +358,6 @@ void render_present() {
 static void train_ants(double fixed_delta) {
   ant_t *ant = NULL;
   int i = 0;
-  learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
 
   vec_foreach(&ant_vec, ant, i) {
     ant_update_nearest_food(ant);
@@ -422,16 +421,17 @@ static void train_ants(double fixed_delta) {
       }
 
       if (input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS) {
-        epoch++;
         const double *input_ptr = input_vec.data;
         const double *output_ptr = output_vec.data;
         const double error = train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr,
                                                   output_ptr, learning_rate);
-        if (epoch % (MAX(1, ((int)5e6 / ANN_BATCH_SIZE))) == 0) {
+        if (epoch % (MAX(1, ((int)2e6 / ANN_BATCH_SIZE))) == 0) {
           printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
         }
         vec_clear(&input_vec);
         vec_clear(&output_vec);
+        learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
+        epoch++;
       }
 
       if (!warp && rand() % 5000 == 0) {
