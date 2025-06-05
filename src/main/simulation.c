@@ -437,9 +437,9 @@ static void train_ants(double fixed_delta) {
       int iterations = 1;
 
       if (logic.action == ANT_DROP_ACTION) {
-        // iterations = 40;
+        iterations = 40;
       } else if (logic.action == ANT_GATHER_ACTION) {
-        // iterations = 20;
+        iterations = 20;
       }
 
       // Train the neural network
