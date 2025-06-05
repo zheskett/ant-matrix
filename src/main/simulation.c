@@ -11,7 +11,7 @@
 static void reset_simulation(void);
 static void train_ants(double fixed_delta);
 static neural_network_t *create_ant_net();
-static void network_train_step(const double *inputs, const double *outputs);
+static void network_train_step(ant_t *ant, const double *inputs, const double *outputs);
 
 #pragma region setup
 
@@ -36,7 +36,7 @@ static void network_train_step(const double *inputs, const double *outputs);
  * 4: drop
  */
 neural_network_t *ant_network = NULL;
-double learning_rate = LEARN_RATE;
+long double learning_rate = LEARN_RATE;
 bool training = true;
 bool reset = false;
 bool auto_reset = true;
@@ -44,6 +44,7 @@ bool warp = false;
 bool random_session = false;
 
 double tick_speed = 1.0;
+double frame_time_avg = 0.03333333333;
 
 vec_double_t input_vec;
 vec_double_t output_vec;
@@ -107,7 +108,9 @@ int start(int argc, char **argv) {
   vec_deinit(&food_vec);
   vec_deinit(&input_vec);
   vec_deinit(&output_vec);
-  free_neural_network(ant_network);
+  if (ant_network) {
+    free_neural_network(ant_network);
+  }
 
   CloseWindow();
 
@@ -186,12 +189,17 @@ void update() {
   if (warp) {
     if (tick_speed <= 1.1) {
       tick_speed = WARP_SPEED;
+    } else {
+      // How much faster or slower than 30 FPS the simulation is running
+      frame_time_avg = 0.7 * frame_time_avg + 0.3 * GetFrameTime();
+      const double ratio = 1 / (30.0 * frame_time_avg);
+
+      if (ratio < 1.1) {
+        tick_speed -= 1.5;
+      } else if (ratio > 1.4) {
+        tick_speed += 0.4;
+      }
     }
-
-    // Scale tick speed based on the render time to get 30 FPS
-    tick_speed = fmin(tick_speed * 1.1, fmax(tick_speed / 2.0, tick_speed / (30.0 * GetFrameTime())));
-
-    tick_speed = fmin(WARP_SPEED * 100, tick_speed);
   } else {
     tick_speed = 1.0;
   }
@@ -301,8 +309,9 @@ void render() {
 
 void initialize() {
   srand(time(NULL));
-  const size_t neuron_counts[] = ANN_NEURON_COUNTS;
-  ant_network = create_ant_net();
+  if (!PER_ANT_NETWORK) {
+    ant_network = create_ant_net();
+  }
   vec_init(&input_vec);
   vec_init(&output_vec);
 
@@ -327,7 +336,7 @@ void initialize() {
     if (PER_ANT_NETWORK) {
       ant->net = create_ant_net();
     } else {
-      ant->net = NULL;
+      ant->net = ant_network;
     }
 
     ant->texture = &ant_texture;
@@ -428,34 +437,17 @@ static void train_ants(double fixed_delta) {
       int iterations = 1;
 
       if (logic.action == ANT_DROP_ACTION) {
-        iterations = 40;
+        // iterations = 40;
       } else if (logic.action == ANT_GATHER_ACTION) {
-        iterations = 20;
+        // iterations = 20;
       }
+
+      // Train the neural network
       for (int j = 0; j < iterations; j++) {
-        network_train_step(inputs, outputs);
+        network_train_step(ant, inputs, outputs);
       }
-
-      if (!warp && rand() % 5000 == 0) {
-        const double *pred;
-        pred = run_neural_network(ant_network, inputs);
-        printf("Inputs: ");
-        for (int j = 0; j < ANN_INPUTS; j++) {
-          printf("%.3f ", inputs[j]);
-        }
-        printf("\nOutputs: ");
-        for (int j = 0; j < ANN_OUTPUTS; j++) {
-          printf("%.3f ", outputs[j]);
-        }
-        printf("\nPred: ");
-        for (int j = 0; j < ANN_OUTPUTS; j++) {
-          printf("%.3f ", pred[j]);
-        }
-        printf("\n");
-      }
-
     } else {
-      const double *pred = run_neural_network(ant_network, inputs);
+      const double *pred = run_neural_network(ant->net, inputs);
       ant_logic_t logic = {0};
       const double len = hypot(pred[0], pred[1]);
       if (len > 0.0) {
@@ -539,21 +531,48 @@ static neural_network_t *create_ant_net() {
   return network;
 }
 
-static void network_train_step(const double *inputs, const double *outputs) {
-  vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-  vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
+static void network_train_step(ant_t *ant, const double *inputs, const double *outputs) {
+  bool run = true;
+  const double *input_ptr = inputs;
+  const double *output_ptr = outputs;
+  size_t m = 1;
 
-  if (input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS) {
-    const double *input_ptr = input_vec.data;
-    const double *output_ptr = output_vec.data;
-    const double error =
-        train_neural_network(ant_network, (size_t)input_vec.length / ANN_INPUTS, input_ptr, output_ptr, learning_rate);
-    if (epoch % (MAX(1, ((int)2e6 / ANN_BATCH_SIZE))) == 0) {
-      printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
+  // Accumulate inputs and outputs for batch training with single network
+  if (!PER_ANT_NETWORK) {
+    vec_pusharr(&input_vec, inputs, ANN_INPUTS);
+    vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
+    run = input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS;
+    input_ptr = input_vec.data;
+    output_ptr = output_vec.data;
+    m = (size_t)input_vec.length / ANN_INPUTS;
+  }
+
+  if (run) {
+    const double error = train_neural_network(ant->net, m, input_ptr, output_ptr, learning_rate);
+    if (epoch % (MAX(1, ((int)2e6 / m))) == 0) {
+      printf("Epoch: %d, Error: % .6f, Learning Rate: % .6Lf\n", epoch, error, learning_rate);
     }
     vec_clear(&input_vec);
     vec_clear(&output_vec);
-    learning_rate = fmax(learning_rate * LEARN_RATE_DECAY, 1e-4);
+    learning_rate = fmaxl(learning_rate * (powl(LEARN_RATE_DECAY, (long double)m)), 1e-4);
     epoch++;
+  }
+
+  if (!warp && rand() % 10000 == 0) {
+    const double *pred;
+    pred = run_neural_network(ant->net, inputs);
+    printf("Inputs: ");
+    for (int j = 0; j < ANN_INPUTS; j++) {
+      printf("%.3f ", inputs[j]);
+    }
+    printf("\nOutputs: ");
+    for (int j = 0; j < ANN_OUTPUTS; j++) {
+      printf("%.3f ", outputs[j]);
+    }
+    printf("\nPred: ");
+    for (int j = 0; j < ANN_OUTPUTS; j++) {
+      printf("%.3f ", pred[j]);
+    }
+    printf("\n");
   }
 }
