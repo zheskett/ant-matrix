@@ -131,6 +131,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   }
 
   // Transpose inputs, desired_outputs for Y and A[0]
+  // #pragma omp parallel for
   for (size_t j = 0; j < m; j++) {
     const double *do_j = desired_outputs + j * network->neuron_counts[L];
     const double *in_j = inputs + j * network->neuron_counts[0];
@@ -208,6 +209,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     double *bias_l = network->bias + neural_layer_offset(network, l);
 
     // Cache optimized order
+    // #pragma omp parallel for
     for (size_t j = 0; j < in_size; j++) {
       double *delta_lj = delta[l] + j * m;
       for (size_t k = 0; k < m; k++) {
@@ -234,6 +236,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
     }
 
     // dC/dW^l = (delta^l)((A^{l-1})^T)
+    // #pragma omp parallel for
     for (size_t i = 0; i < in_size; i++) {
       // l-1 since 0-indexed
       double *dC_dW_li = dC_dW[l - 1] + i * network->neuron_counts[l - 1];
@@ -251,6 +254,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   }
 
   // Apply gradient descent on weights
+  // #pragma omp parallel for
   for (size_t i = 0; i < network->total_weights; i++) {
     network->t_weights[i] -= lr * (*dC_dW)[i];
   }

@@ -11,7 +11,7 @@ typedef struct {
   int amount;
 } food_t;
 
-typedef vec_t(food_t*) vec_food_t;
+typedef vec_t(food_t *) vec_food_t;
 
 /**
  * @brief Create a food object
@@ -22,7 +22,7 @@ typedef vec_t(food_t*) vec_food_t;
  * @param amount Amount of food
  * @return food_t* Pointer to the created food object
  */
-food_t* create_food(vector2d_t pos, double radius, double detection_radius, int amount);
+food_t *create_food(vector2d_t pos, double radius, double detection_radius, int amount);
 
 /**
  * @brief Update the food object
@@ -30,27 +30,27 @@ food_t* create_food(vector2d_t pos, double radius, double detection_radius, int 
  * @param food Pointer to the food object
  * @param delta_time Delta time
  */
-void update_food(food_t* food, double delta_time);
+void update_food(food_t *food, double delta_time);
 
 /**
  * @brief Draw the food object
  *
  * @param food Pointer to the food object
  */
-void draw_food(food_t* food);
+void draw_food(food_t *food);
 
 /**
  * @brief Destroy the food object
  *
  * @param food Pointer to the food object
  */
-void destroy_food(food_t* food);
+void destroy_food(food_t *food);
 
 /**
  * @brief Take some food from food pile
  *
  * @param food Pointer to the food to take from
  */
-void grab_food(food_t* food);
+void grab_food(food_t *food);
 
 #endif /* FOOD_H */

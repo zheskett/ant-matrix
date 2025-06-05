@@ -1,7 +1,15 @@
 cmake_minimum_required(VERSION 3.16)
 project(AntMatrix C)
 
-set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 11)
+
+# OMP support
+# if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+#     set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp")
+#     set(OpenMP_C_LIB_NAMES "omp")
+#     set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
+# endif()
+# find_package(OpenMP REQUIRED)
 
 find_package(raylib REQUIRED)
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c" "${CMAKE_SOURCE_DIR}/lib/*.c")

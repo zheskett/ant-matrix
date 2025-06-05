@@ -9,15 +9,15 @@
  * @brief Artificial Neural Network (ANN) structure for a neural network.
  */
 typedef struct {
-  size_t num_hidden_layers;  // Number of hidden layers
-  size_t total_neurons;      // Total number of neurons in the network
-  size_t total_weights;      // Total number of weights in the network
-  size_t data_size;          // Size of the data used for training and inference
-  size_t *neuron_counts;     // Array containing the number of neurons in each layer
-  double *output;            // 2D array: Output of each neuron in the network
-  double *t_weights;         // Weights for the connections between neurons, stored as transposed
-  double *bias;              // 2D array: Biases for each neuron in the network
-  char *data;                // Pointer to the data used for training and inference
+  size_t num_hidden_layers; // Number of hidden layers
+  size_t total_neurons;     // Total number of neurons in the network
+  size_t total_weights;     // Total number of weights in the network
+  size_t data_size;         // Size of the data used for training and inference
+  size_t *neuron_counts;    // Array containing the number of neurons in each layer
+  double *output;           // 2D array: Output of each neuron in the network
+  double *t_weights;        // Weights for the connections between neurons, stored as transposed
+  double *bias;             // 2D array: Biases for each neuron in the network
+  char *data;               // Pointer to the data used for training and inference
 } neural_network_t;
 
 /**

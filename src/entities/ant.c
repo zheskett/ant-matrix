@@ -6,10 +6,10 @@
 #include "main/simulation.h"
 #include "raylib.h"
 
-static ant_logic_t ant_decision(ant_t* ant, double delta_time);
+static ant_logic_t ant_decision(ant_t *ant, double delta_time);
 
-ant_t* ant_create(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double rotation) {
-  ant_t* ant = (ant_t*)malloc(sizeof(ant_t));
+ant_t *ant_create(vector2d_t pos, vector2d_t spawn, Texture2D *texture, double rotation) {
+  ant_t *ant = (ant_t *)malloc(sizeof(ant_t));
   if (!ant) {
     return NULL;
   }
@@ -26,7 +26,7 @@ ant_t* ant_create(vector2d_t pos, vector2d_t spawn, Texture2D* texture, double r
   return ant;
 }
 
-void ant_update_nearest_food(ant_t* ant) {
+void ant_update_nearest_food(ant_t *ant) {
   if (!ant) {
     return;
   }
@@ -36,7 +36,7 @@ void ant_update_nearest_food(ant_t* ant) {
   circled_t detector_circle = ant_get_detector_circle(ant);
   double nearest_distance = DBL_MAX;
   for (int i = 0; i < food_vec.length; i++) {
-    food_t* food = food_vec.data[i];
+    food_t *food = food_vec.data[i];
     bool collide = circle_collide_circle(detector_circle, (circled_t){food->pos, food->detection_radius});
     if (!collide) {
       continue;
@@ -51,26 +51,26 @@ void ant_update_nearest_food(ant_t* ant) {
   }
 }
 
-void ant_run_update(ant_t* ant, ant_logic_t logic, double delta_time) {
+void ant_run_update(ant_t *ant, ant_logic_t logic, double delta_time) {
   if (!ant) {
     return;
   }
 
   ant_set_angle(ant, logic.angle);
   switch (logic.action) {
-    case ANT_STEP_ACTION:
-      ant_step(ant, delta_time);
-      break;
-    case ANT_GATHER_ACTION:
-      ant_gather(ant);
-      break;
-    case ANT_DROP_ACTION:
-      ant_drop(ant);
-      break;
+  case ANT_STEP_ACTION:
+    ant_step(ant, delta_time);
+    break;
+  case ANT_GATHER_ACTION:
+    ant_gather(ant);
+    break;
+  case ANT_DROP_ACTION:
+    ant_drop(ant);
+    break;
   }
 }
 
-ant_logic_t ant_train_update(ant_t* ant, double delta_time) {
+ant_logic_t ant_train_update(ant_t *ant, double delta_time) {
   if (!ant) {
     return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
@@ -81,7 +81,7 @@ ant_logic_t ant_train_update(ant_t* ant, double delta_time) {
   return logic;
 }
 
-void ant_draw(ant_t* ant) {
+void ant_draw(ant_t *ant) {
   if (!ant) {
     return;
   }
@@ -97,7 +97,7 @@ void ant_draw(ant_t* ant) {
               ant->has_food ? (Color){0, 255, 0, 128} : (Color){255, 0, 0, 128});
 }
 
-void ant_free(ant_t* ant) {
+void ant_free(ant_t *ant) {
   if (!ant) {
     return;
   }
@@ -107,7 +107,7 @@ void ant_free(ant_t* ant) {
   free(ant);
 }
 
-circled_t ant_get_detector_circle(ant_t* ant) {
+circled_t ant_get_detector_circle(ant_t *ant) {
   if (!ant) {
     return (circled_t){(vector2d_t){0.0, 0.0}, 0.0};
   }
@@ -121,7 +121,7 @@ circled_t ant_get_detector_circle(ant_t* ant) {
   return circle;
 }
 
-void ant_set_angle(ant_t* ant, double angle) {
+void ant_set_angle(ant_t *ant, double angle) {
   if (!ant) {
     return;
   }
@@ -129,7 +129,7 @@ void ant_set_angle(ant_t* ant, double angle) {
   ant->rotation = constrain_angle(ant->rotation + angle);
 }
 
-bool ant_step(ant_t* ant, double delta_time) {
+bool ant_step(ant_t *ant, double delta_time) {
   if (!ant) {
     return false;
   }
@@ -153,7 +153,7 @@ bool ant_step(ant_t* ant, double delta_time) {
   return true;
 }
 
-bool ant_gather(ant_t* ant) {
+bool ant_gather(ant_t *ant) {
   if (!ant) {
     return false;
   }
@@ -177,7 +177,7 @@ bool ant_gather(ant_t* ant) {
   return false;
 }
 
-bool ant_drop(ant_t* ant) {
+bool ant_drop(ant_t *ant) {
   if (!ant) {
     return false;
   }
@@ -197,7 +197,7 @@ bool ant_drop(ant_t* ant) {
  * @param ant Pointer to the ant entity.
  * @param delta_time Time since the last update.
  */
-static ant_logic_t ant_decision(ant_t* ant, double delta_time) {
+static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
   if (!ant) {
     return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
