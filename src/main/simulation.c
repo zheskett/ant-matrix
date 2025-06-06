@@ -512,7 +512,7 @@ static void reset_simulation() {
         food_pos.y = rand() % WORLD_H;
       }
       food_t *food =
-          create_food(food_pos, food_radius, food_detection_radius,
+          food_create(food_pos, food_radius, food_detection_radius,
                       rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount);
       dyn_arr_push(g_food_list, food);
     }

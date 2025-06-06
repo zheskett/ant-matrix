@@ -3,7 +3,7 @@
 #include "raylib.h"
 #include <stddef.h>
 
-food_t *create_food(vector2d_t pos, double radius, double detection_radius, int amount) {
+food_t *food_create(vector2d_t pos, double radius, double detection_radius, int amount) {
   food_t *food = (food_t *)malloc(sizeof(food_t));
   if (!food) {
     return NULL;

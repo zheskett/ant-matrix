@@ -4,7 +4,6 @@
 #include <math.h>
 
 #include "main/simulation.h"
-#include "raylib.h"
 
 static ant_logic_t ant_decision(ant_t *ant, double delta_time);
 

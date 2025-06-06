@@ -33,7 +33,7 @@ typedef dyn_arr_def(food_t *) dyn_arr_food_t;
  * @param amount Amount of food
  * @return food_t* Pointer to the created food object
  */
-food_t *create_food(vector2d_t pos, double radius, double detection_radius, int amount);
+food_t *food_create(vector2d_t pos, double radius, double detection_radius, int amount);
 
 /**
  * @brief Update the food object

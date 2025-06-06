@@ -11,7 +11,6 @@
 #define SIMULATION_H
 
 #include "entities/ant.h"
-#include "entities/food.h"
 
 // Multiple networks per ant?
 #define PER_ANT_NETWORK 1
