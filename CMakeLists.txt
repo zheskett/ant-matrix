@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(AntMatrix C)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 
 # OMP support
 # if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
@@ -12,7 +12,7 @@ set(CMAKE_C_STANDARD 11)
 # find_package(OpenMP REQUIRED)
 
 find_package(raylib REQUIRED)
-file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c" "${CMAKE_SOURCE_DIR}/lib/*.c")
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 list(FILTER SRC EXCLUDE REGEX ".*/src/main\\.c$")
 
 # Create static library for test purposes

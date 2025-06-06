@@ -4,7 +4,6 @@
 
 #include "entities/ant.h"
 #include "entities/food.h"
-#include "util/util.h"
 
 // Multiple networks per ant
 #define PER_ANT_NETWORK 1
@@ -35,8 +34,8 @@
 #define WARP_SPEED 50.0
 #define RESET_TIME 60.0
 
-extern vec_ant_t ant_vec;
-extern vec_food_t food_vec;
+extern dyn_arr_ant_t ant_list;
+extern dyn_arr_food_t food_list;
 
 int start(int argc, char **argv);
 void fixed_update(double fixed_delta);

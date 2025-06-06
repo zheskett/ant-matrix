@@ -1,6 +1,7 @@
 #include "food.h"
 
 #include "raylib.h"
+#include <stddef.h>
 
 food_t *create_food(vector2d_t pos, double radius, double detection_radius, int amount) {
   food_t *food = (food_t *)malloc(sizeof(food_t));
@@ -16,7 +17,7 @@ food_t *create_food(vector2d_t pos, double radius, double detection_radius, int 
   return food;
 }
 
-void update_food(food_t *food, double delta_time) {
+void food_update(food_t *food, double delta_time) {
   if (!food) {
     return;
   }
@@ -24,7 +25,7 @@ void update_food(food_t *food, double delta_time) {
   // Not used yet
 }
 
-void draw_food(food_t *food) {
+void food_draw(food_t *food) {
   if (!food) {
     return;
   }
@@ -39,7 +40,7 @@ void draw_food(food_t *food) {
   DrawText(text, ray_pos.x - text_size.x / 2, ray_pos.y - text_size.y / 2, font_size, WHITE);
 }
 
-void destroy_food(food_t *food) {
+void food_free(food_t *food) {
   if (!food) {
     return;
   }
@@ -47,7 +48,7 @@ void destroy_food(food_t *food) {
   free(food);
 }
 
-void grab_food(food_t *food) {
+void food_grab(food_t *food) {
   if (!food) {
     return;
   }

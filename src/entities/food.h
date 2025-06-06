@@ -1,8 +1,8 @@
 #pragma once
 #ifndef FOOD_H
 #define FOOD_H
+#include "util/dynarr.h"
 #include "util/util.h"
-#include "vec.h"
 
 typedef struct {
   vector2d_t pos;
@@ -11,7 +11,7 @@ typedef struct {
   int amount;
 } food_t;
 
-typedef vec_t(food_t *) vec_food_t;
+typedef dyn_arr_def(food_t *) dyn_arr_food_t;
 
 /**
  * @brief Create a food object
@@ -30,27 +30,27 @@ food_t *create_food(vector2d_t pos, double radius, double detection_radius, int 
  * @param food Pointer to the food object
  * @param delta_time Delta time
  */
-void update_food(food_t *food, double delta_time);
+void food_update(food_t *food, double delta_time);
 
 /**
  * @brief Draw the food object
  *
  * @param food Pointer to the food object
  */
-void draw_food(food_t *food);
+void food_draw(food_t *food);
 
 /**
  * @brief Destroy the food object
  *
  * @param food Pointer to the food object
  */
-void destroy_food(food_t *food);
+void food_free(food_t *food);
 
 /**
  * @brief Take some food from food pile
  *
  * @param food Pointer to the food to take from
  */
-void grab_food(food_t *food);
+void food_grab(food_t *food);
 
 #endif /* FOOD_H */

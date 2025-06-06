@@ -6,7 +6,6 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "util/gui.h"
-#include "vec.h"
 
 static void reset_simulation(void);
 static void train_ants(double fixed_delta);
@@ -46,12 +45,12 @@ bool random_session = false;
 double tick_speed = 1.0;
 double frame_time_avg = 0.03333333333;
 
-vec_double_t input_vec;
-vec_double_t output_vec;
+dyn_arr_dbl_t input_list;
+dyn_arr_dbl_t output_list;
 
 ant_t *ant_data = NULL;
-vec_ant_t ant_vec;
-vec_food_t food_vec;
+dyn_arr_ant_t ant_list;
+dyn_arr_food_t food_list;
 
 int epoch = 0;
 const int starting_ants = 200;
@@ -91,23 +90,24 @@ int start(int argc, char **argv) {
   UnloadRenderTexture(offscreen);
   UnloadTexture(ant_texture);
 
-  int i = 0;
-  ant_t *ant = NULL;
   if (ant_data) {
-    vec_foreach(&ant_vec, ant, i) {
+    for (int i = 0; i < ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(ant_list, i);
       if (PER_ANT_NETWORK) {
         free_neural_network(ant->net);
       }
     }
     free(ant_data);
   }
-  vec_deinit(&ant_vec);
+  dyn_arr_free(ant_list);
 
-  food_t *food = NULL;
-  vec_foreach(&food_vec, food, i) { destroy_food(food); }
-  vec_deinit(&food_vec);
-  vec_deinit(&input_vec);
-  vec_deinit(&output_vec);
+  for (int i = 0; i < food_list.length; i++) {
+    food_t *food = dyn_arr_get(food_list, i);
+    food_free(food);
+  }
+  dyn_arr_free(food_list);
+  dyn_arr_free(input_list);
+  dyn_arr_free(output_list);
   if (ant_network) {
     free_neural_network(ant_network);
   }
@@ -195,9 +195,9 @@ void update() {
       const double ratio = 1 / (30.0 * frame_time_avg);
 
       if (ratio < 1.1) {
-        tick_speed -= 1.5;
+        tick_speed *= 0.95;
       } else if (ratio > 1.4) {
-        tick_speed += 0.4;
+        tick_speed += 1.5;
       }
     }
   } else {
@@ -240,10 +240,8 @@ void update() {
 
 void fixed_update(double fixed_delta) {
   if (training && random_session) {
-    int i = 0;
-    ant_t *ant = NULL;
-
-    vec_foreach(&ant_vec, ant, i) {
+    for (int i = 0; i < ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(ant_list, i);
       ant->rotation = (rand() % 360) * DEG2RAD_D;
       ant->pos.x = rand() % WORLD_W;
       ant->pos.y = rand() % WORLD_H;
@@ -252,10 +250,6 @@ void fixed_update(double fixed_delta) {
     }
   }
   train_ants(fixed_delta);
-
-  // food_t *food = NULL;
-  // int i = 0;
-  // vec_foreach(&food_vec, food, i) { update_food(food, fixed_delta); }
 }
 
 void render() {
@@ -271,11 +265,14 @@ void render() {
 
   DrawCircleV(v2d_to_v2(spawn), ANT_SPAWN_RADIUS, DARKBLUE);
 
-  ant_t *ant = NULL;
-  food_t *food = NULL;
-  int i = 0;
-  vec_foreach(&food_vec, food, i) { draw_food(food); }
-  vec_foreach(&ant_vec, ant, i) { ant_draw(ant); }
+  for (int i = 0; i < food_list.length; i++) {
+    food_t *food = dyn_arr_get(food_list, i);
+    food_draw(food);
+  }
+  for (int i = 0; i < ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(ant_list, i);
+    ant_draw(ant);
+  }
 
   EndMode2D();
 
@@ -312,8 +309,10 @@ void initialize() {
   if (!PER_ANT_NETWORK) {
     ant_network = create_ant_net();
   }
-  vec_init(&input_vec);
-  vec_init(&output_vec);
+  dyn_arr_init(ant_list);
+  dyn_arr_init(food_list);
+  dyn_arr_init(input_list);
+  dyn_arr_init(output_list);
 
   // Initialize raylib
   SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
@@ -321,9 +320,6 @@ void initialize() {
   SetTargetFPS(TARGET_FPS);
 
   ant_texture = LoadTexture("assets/ant.png");
-
-  vec_init(&ant_vec);
-  vec_init(&food_vec);
 
   ant_data = malloc(starting_ants * sizeof(ant_t));
   ant_t *ant_data_ptr = ant_data;
@@ -346,8 +342,7 @@ void initialize() {
     ant->rotation = (rand() % 360) * DEG2RAD_D;
     ant->has_food = false;
     ant->is_coliding = false;
-
-    vec_push(&ant_vec, ant);
+    dyn_arr_push(ant_list, ant);
   }
 
   reset_simulation();
@@ -390,10 +385,8 @@ void render_present() {
 }
 
 static void train_ants(double fixed_delta) {
-  ant_t *ant = NULL;
-  int i = 0;
-
-  vec_foreach(&ant_vec, ant, i) {
+  for (int i = 0; i < ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(ant_list, i);
     ant_update_nearest_food(ant);
 
     // Update the neural network
@@ -483,18 +476,17 @@ static void train_ants(double fixed_delta) {
 }
 
 static void reset_simulation() {
-  ant_t *ant = NULL;
-  food_t *food = NULL;
-  int i = 0;
-
-  // Destroy all ants and food
-  vec_foreach(&food_vec, food, i) { destroy_food(food); }
-  vec_clear(&food_vec);
+  for (int i = 0; i < food_list.length; i++) {
+    food_t *food = dyn_arr_get(food_list, i);
+    food_free(food);
+  }
+  dyn_arr_clear(food_list);
 
   random_session = rand() % 3 != 0;
 
   // Position ants at spawn
-  vec_foreach(&ant_vec, ant, i) {
+  for (int i = 0; i < ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(ant_list, i);
     ant->pos = spawn;
     ant->rotation = (rand() % 360) * DEG2RAD_D;
     ant->has_food = false;
@@ -509,9 +501,10 @@ static void reset_simulation() {
         food_pos.x = (rand() % WORLD_H) + spawn.x / 2;
         food_pos.y = rand() % WORLD_H;
       }
-      vec_push(&food_vec,
-               create_food(food_pos, food_radius, food_detection_radius,
-                           rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount));
+      food_t *food =
+          create_food(food_pos, food_radius, food_detection_radius,
+                      rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount);
+      dyn_arr_push(food_list, food);
     }
   }
 }
@@ -539,12 +532,12 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
 
   // Accumulate inputs and outputs for batch training with single network
   if (!PER_ANT_NETWORK) {
-    vec_pusharr(&input_vec, inputs, ANN_INPUTS);
-    vec_pusharr(&output_vec, outputs, ANN_OUTPUTS);
-    run = input_vec.length >= ANN_BATCH_SIZE * ANN_INPUTS;
-    input_ptr = input_vec.data;
-    output_ptr = output_vec.data;
-    m = (size_t)input_vec.length / ANN_INPUTS;
+    dyn_arr_pusharr(input_list, inputs, ANN_INPUTS);
+    dyn_arr_pusharr(output_list, outputs, ANN_OUTPUTS);
+    run = input_list.length >= ANN_BATCH_SIZE * ANN_INPUTS;
+    input_ptr = input_list.data;
+    output_ptr = output_list.data;
+    m = (size_t)input_list.length / ANN_INPUTS;
   }
 
   if (run) {
@@ -552,8 +545,8 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
     if (epoch % (MAX(1, ((int)2e6 / m))) == 0) {
       printf("Epoch: %d, Error: % .6f, Learning Rate: % .6Lf\n", epoch, error, learning_rate);
     }
-    vec_clear(&input_vec);
-    vec_clear(&output_vec);
+    dyn_arr_clear(input_list);
+    dyn_arr_clear(output_list);
     learning_rate = fmaxl(learning_rate * (powl(LEARN_RATE_DECAY, (long double)m)), 1e-4);
     epoch++;
   }

@@ -4,8 +4,6 @@
 
 #include "entities/food.h"
 #include "neural/nn.h"
-#include "util/util.h"
-#include "vec.h"
 
 #define ANT_SCALE 0.25
 #define ANT_DETECTOR_RADIUS 50.0
@@ -35,7 +33,7 @@ typedef struct {
   bool is_coliding;
 } ant_t;
 
-typedef vec_t(ant_t *) vec_ant_t;
+typedef dyn_arr_def(ant_t *) dyn_arr_ant_t;
 
 /**
  * @brief Create a new ant entity.
