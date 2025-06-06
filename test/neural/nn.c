@@ -8,12 +8,12 @@
 
 int test_xor() {
   size_t neuron_counts[] = {2, 2, 1};
-  neural_network_t *network = create_neural_network(1, neuron_counts);
+  neural_network_t *network = neural_create(1, neuron_counts);
   assert(network != NULL);
 
   double std = sqrt(6) / sqrt(network->neuron_counts[0] + network->neuron_counts[2]);
-  randomize_weights(network, -std, std);
-  randomize_bias(network, 0, 0);
+  neural_randomize_weights(network, -std, std);
+  neural_randomize_bias(network, 0, 0);
 
   const double inputs[4][2] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
   const double expected_outputs[4][1] = {{-1}, {1}, {1}, {-1}};
@@ -30,27 +30,27 @@ int test_xor() {
                                   inputs[prev_index][1]};
     const double outputs_ptr[2] = {expected_outputs[rand_index][0], expected_outputs[prev_index][0]};
 
-    double error = train_neural_network(network, 2, inputs_ptr, outputs_ptr, 0.05);
+    double error = neural_train(network, 2, inputs_ptr, outputs_ptr, 0.05);
     // printf("%f\n", error);
   }
 
-  run_neural_network(network, inputs[1]);
-  write_neural_network(network, stdout);
+  neural_run(network, inputs[1]);
+  neural_print(network, stdout);
 
   for (size_t i = 0; i < 4; i++) {
-    const double *output = run_neural_network(network, inputs[i]);
+    const double *output = neural_run(network, inputs[i]);
     printf("Input: [%f, %f] -> Output: [%f]\n", inputs[i][0], inputs[i][1], output[0]);
     fflush(stdout);
     assert(fabs(output[0] - expected_outputs[i][0]) < 0.2);
   }
 
-  free_neural_network(network);
+  neural_free(network);
   return EXIT_SUCCESS;
 }
 
 int main() {
   size_t neuron_counts[] = {3, 20, 4, 3, 4, 5};
-  neural_network_t *network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
+  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
 
   assert(network != NULL);
   assert(network->num_hidden_layers == (sizeof(neuron_counts) / sizeof(size_t)) - 2);
@@ -60,11 +60,11 @@ int main() {
   assert(network->bias != NULL);
 
   srand(time(NULL));
-  randomize_weights(network, -1.0, 1.0);
-  randomize_bias(network, -0.5, 0.5);
+  neural_randomize_weights(network, -1.0, 1.0);
+  neural_randomize_bias(network, -0.5, 0.5);
 
   double input[] = {0.5, 0.2, 0.1};
-  const double *output = run_neural_network(network, input);
+  const double *output = neural_run(network, input);
   printf("[");
   for (size_t i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
     if (i > 0 && i < network->neuron_counts[network->num_hidden_layers + 1]) {
@@ -73,15 +73,15 @@ int main() {
     printf("%f", output[i]);
   }
   printf("]\n");
-  // write_neural_network(network, stdout);
+  // neural_print(network, stdout);
 
-  double score = train_neural_network(network, 1, input, output, 0.01);
+  double score = neural_train(network, 1, input, output, 0.01);
   assert(score < 1e-6 && score > -1e-6);
 
-  score = train_neural_network(network, 1, input, (const double[5]){0.5, 0.5, 0.5, 0.5, 0.5}, 0.01);
+  score = neural_train(network, 1, input, (const double[5]){0.5, 0.5, 0.5, 0.5, 0.5}, 0.01);
   printf("Cost after training: %f\n", score);
 
-  free_neural_network(network);
+  neural_free(network);
   fflush(stdout);
   return test_xor();
 }

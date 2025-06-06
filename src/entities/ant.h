@@ -19,12 +19,18 @@
 #define ANT_SPEED 100.0
 #define ANT_SPAWN_RADIUS 50.0
 
+/**
+ * @brief Represents the actions an ant can take.
+ */
 typedef enum {
   ANT_STEP_ACTION,
   ANT_GATHER_ACTION,
   ANT_DROP_ACTION,
 } ant_action_t;
 
+/**
+ * @brief Represents the output logic for an ant on a given tick.
+ */
 typedef struct {
   ant_action_t action;
   double angle;
@@ -34,14 +40,14 @@ typedef struct {
  * @brief Represents an ant entity in the simulation.
  */
 typedef struct {
-  Texture2D *texture;    // Pointer to the texture of the ant
-  food_t *nearest_food;  // The nearest detected food object (in food list)
-  neural_network_t *net; // Pointer to the neural network for the ant's behavior
-  vector2d_t spawn;      // The spawn position of the ant
-  vector2d_t pos;        // The current position of the ant
-  double rotation;       // The current rotation of the ant in radians
-  bool has_food;         // Whether the ant is currently carrying food
-  bool is_coliding;      // Whether the ant is currently colliding with something
+  Texture2D *texture;    /**< Pointer to the texture of the ant */
+  food_t *nearest_food;  /**< The nearest detected food object (in food list) */
+  neural_network_t *net; /**< Pointer to the neural network for the ant's behavior */
+  vector2d_t spawn;      /**< The spawn position of the ant */
+  vector2d_t pos;        /**< The current position of the ant */
+  double rotation;       /**< The current rotation of the ant in radians */
+  bool has_food;         /**< Whether the ant is currently carrying food */
+  bool is_coliding;      /**< Whether the ant is currently colliding with something */
 } ant_t;
 
 typedef dyn_arr_def(ant_t *) dyn_arr_ant_t;

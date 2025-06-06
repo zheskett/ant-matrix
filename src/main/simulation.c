@@ -104,7 +104,7 @@ int start(int argc, char **argv) {
     for (int i = 0; i < g_ant_list.length; i++) {
       ant_t *ant = dyn_arr_get(g_ant_list, i);
       if (PER_ANT_NETWORK) {
-        free_neural_network(ant->net);
+        neural_free(ant->net);
       }
     }
     free(ant_data);
@@ -119,7 +119,7 @@ int start(int argc, char **argv) {
   dyn_arr_free(input_list);
   dyn_arr_free(output_list);
   if (ant_network) {
-    free_neural_network(ant_network);
+    neural_free(ant_network);
   }
 
   CloseWindow();
@@ -450,7 +450,7 @@ static void train_ants(double fixed_delta) {
         network_train_step(ant, inputs, outputs);
       }
     } else {
-      const double *pred = run_neural_network(ant->net, inputs);
+      const double *pred = neural_run(ant->net, inputs);
       ant_logic_t logic = {0};
       const double len = hypot(pred[0], pred[1]);
       if (len > 0.0) {
@@ -521,15 +521,15 @@ static void reset_simulation() {
 
 static neural_network_t *create_ant_net() {
   const size_t neuron_counts[] = ANN_NEURON_COUNTS;
-  neural_network_t *network = create_neural_network((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
+  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
   if (!network) {
     fprintf(stderr, "Failed to create neural network\n");
     exit(EXIT_FAILURE);
   }
   // Randomize weights and biases
   const double std = sqrt(6) / sqrt(neuron_counts[0] + neuron_counts[network->num_hidden_layers + 1]);
-  randomize_weights(network, -std, std);
-  randomize_bias(network, -0.01, 0.01);
+  neural_randomize_weights(network, -std, std);
+  neural_randomize_bias(network, -0.01, 0.01);
 
   return network;
 }
@@ -551,7 +551,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
   }
 
   if (run) {
-    const double error = train_neural_network(ant->net, m, input_ptr, output_ptr, learning_rate);
+    const double error = neural_train(ant->net, m, input_ptr, output_ptr, learning_rate);
     if (epoch % (MAX(1, ((int)2e6 / m))) == 0) {
       printf("Epoch: %d, Error: % .6f, Learning Rate: % .6Lf\n", epoch, error, learning_rate);
     }
@@ -563,7 +563,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
 
   if (!warp && rand() % 10000 == 0) {
     const double *pred;
-    pred = run_neural_network(ant->net, inputs);
+    pred = neural_run(ant->net, inputs);
     printf("Inputs: ");
     for (int j = 0; j < ANN_INPUTS; j++) {
       printf("%.3f ", inputs[j]);

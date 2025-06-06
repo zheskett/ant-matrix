@@ -102,7 +102,7 @@ void ant_free(ant_t *ant) {
     return;
   }
   if (ant->net) {
-    free_neural_network(ant->net);
+    neural_free(ant->net);
   }
   free(ant);
 }

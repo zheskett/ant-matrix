@@ -17,15 +17,15 @@
  * @brief Artificial Neural Network (ANN) structure for a neural network.
  */
 typedef struct {
-  size_t num_hidden_layers; // Number of hidden layers
-  size_t total_neurons;     // Total number of neurons in the network
-  size_t total_weights;     // Total number of weights in the network
-  size_t data_size;         // Size of the data used for training and inference
-  size_t *neuron_counts;    // Array containing the number of neurons in each layer
-  double *output;           // 2D array: Output of each neuron in the network
-  double *t_weights;        // Weights for the connections between neurons, stored as transposed
-  double *bias;             // 2D array: Biases for each neuron in the network
-  char *data;               // Pointer to the data used for training and inference
+  size_t num_hidden_layers; /**< Number of hidden layers */
+  size_t total_neurons;     /**< Total number of neurons in the network */
+  size_t total_weights;     /**< Total number of weights in the network */
+  size_t data_size;         /**< Size of the data used for training and inference */
+  size_t *neuron_counts;    /**< Array containing the number of neurons in each layer */
+  double *output;           /**< 2D array: Output of each neuron in the network */
+  double *t_weights;        /**< Weights for the connections between neurons, stored as transposed */
+  double *bias;             /**< 2D array: Biases for each neuron in the network */
+  char *data;               /**< Pointer to the data used for training and inference */
 } neural_network_t;
 
 /**
@@ -36,7 +36,7 @@ typedef struct {
  * layers.
  * @return A pointer to the created neural network, or \c NULL on failure.
  */
-neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t neuron_counts_array[]);
+neural_network_t *neural_create(size_t num_hidden_layers, const size_t neuron_counts_array[]);
 
 /**
  * @brief Calculate the output of the neural network for a given input.
@@ -45,7 +45,7 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t n
  * @param input The input data for the neural network.
  * @return A pointer to the output of the neural network.
  */
-const double *run_neural_network(neural_network_t *network, const double *input);
+const double *neural_run(neural_network_t *network, const double *input);
 
 /**
  * @brief Train the neural network using backpropagation.
@@ -57,31 +57,8 @@ const double *run_neural_network(neural_network_t *network, const double *input)
  * @param lr The learning rate for weight updates.
  * @return The cost of the training process, which can be used to evaluate the performance of the network.
  */
-double train_neural_network(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
-                            double lr);
-
-/**
- * @brief Calculate the cost of the neural network's predictions.
- *
- * @param network The neural network to calculate the cost for.
- * @param m The number of training examples.
- * @param y The actual output values (ground truth).
- * @param y_hat The predicted output values from the neural network.
- * @return The calculated cost value.
- * @note Mean Squared Error (MSE): (1/2m) * Σ(y - y_hat)²
- */
-double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat);
-
-/**
- * @brief Forward propagate A[layer], return next layer A[layer + 1]
- *
- * @param network The neural network to propagate through
- * @param layer The index of the layer to propagate from
- * @param m The number of training examples
- * @param A_in The input array for the current layer
- * @param A_out The output array for the next layer
- */
-void forward_propagate_layer(neural_network_t *network, size_t layer, size_t m, const double *A_in, double *A_out);
+double neural_train(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
+                    double lr);
 
 /**
  * @brief Randomize the weights of the neural network.
@@ -90,7 +67,7 @@ void forward_propagate_layer(neural_network_t *network, size_t layer, size_t m, 
  * @param min_weight The minimum weight value.
  * @param max_weight The maximum weight value.
  */
-void randomize_weights(neural_network_t *network, double min_weight, double max_weight);
+void neural_randomize_weights(neural_network_t *network, double min_weight, double max_weight);
 
 /**
  * @brief Randomize the biases of the neural network.
@@ -99,7 +76,7 @@ void randomize_weights(neural_network_t *network, double min_weight, double max_
  * @param min_bias The minimum bias value.
  * @param max_bias The maximum bias value.
  */
-void randomize_bias(neural_network_t *network, double min_bias, double max_bias);
+void neural_randomize_bias(neural_network_t *network, double min_bias, double max_bias);
 
 /**
  * @brief Get the transposed weights for a specific in-layer in the neural network.
@@ -117,13 +94,13 @@ double (*neural_layer_t_weights(neural_network_t *network, size_t out_layer))[];
  * @param network The neural network to print.
  * @param fp The file pointer to write the neural network structure to.
  */
-void write_neural_network(neural_network_t *network, FILE *fp);
+void neural_print(neural_network_t *network, FILE *fp);
 
 /**
  * @brief Free the memory allocated for the neural network.
  *
  * @param network The neural network to destroy.
  */
-void free_neural_network(neural_network_t *network);
+void neural_free(neural_network_t *network);
 
 #endif /* NEURAL_NETWORK_H */

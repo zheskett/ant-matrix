@@ -16,10 +16,10 @@
  * @brief Represents a food object in the simulation.
  */
 typedef struct {
-  vector2d_t pos;          // Position of the food
-  double radius;           // Radius of the food object
-  double detection_radius; // Radius for detecting food by ants
-  int amount;              // Amount of food available
+  vector2d_t pos;          /**< Position of the food */
+  double radius;           /**< Radius of the food object */
+  double detection_radius; /**< Radius for detecting food by ants */
+  int amount;              /**< Amount of food available */
 } food_t;
 
 typedef dyn_arr_def(food_t *) dyn_arr_food_t;

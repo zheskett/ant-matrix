@@ -6,13 +6,16 @@
 
 #include "util/util.h"
 
+static double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat);
+static void forward_propagate_layer(neural_network_t *network, size_t layer, size_t m, const double *A_in,
+                                    double *A_out);
 static void calculate_output_layer(neural_network_t *network, size_t output_layer);
 static size_t neural_layer_offset(neural_network_t *network, size_t layer);
 static char *allocate_data(neural_network_t *network, size_t m);
 
 static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
 
-neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t neuron_counts_array[]) {
+neural_network_t *neural_create(size_t num_hidden_layers, const size_t neuron_counts_array[]) {
   num_hidden_layers = MAX(0, num_hidden_layers);
   neural_network_t *network = malloc(sizeof(neural_network_t));
   if (!network) {
@@ -35,7 +38,7 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t n
     const size_t in_size = neuron_counts_array[i];
     const size_t out_size = neuron_counts_array[i + 1];
     if (in_size <= 0 || out_size <= 0) {
-      free_neural_network(network);
+      neural_free(network);
       return NULL;
     }
 
@@ -47,40 +50,40 @@ neural_network_t *create_neural_network(size_t num_hidden_layers, const size_t n
 
   network->neuron_counts = calloc(num_hidden_layers + 2, sizeof(*network->neuron_counts));
   if (!network->neuron_counts) {
-    free_neural_network(network);
+    neural_free(network);
     return NULL;
   }
   memcpy(network->neuron_counts, neuron_counts_array, (num_hidden_layers + 2) * sizeof(*network->neuron_counts));
 
   network->output = calloc(total_neurons, sizeof(*network->output));
   if (!network->output) {
-    free_neural_network(network);
+    neural_free(network);
     return NULL;
   }
 
   network->t_weights = calloc(weights_size, sizeof(*network->t_weights));
   if (!network->t_weights) {
-    free_neural_network(network);
+    neural_free(network);
     return NULL;
   }
 
   network->bias = calloc(total_neurons, sizeof(*network->bias));
   if (!network->bias) {
-    free_neural_network(network);
+    neural_free(network);
     return NULL;
   }
 
   // Calculate the size of the data used for training and inference (8 is arbitrary)
   allocate_data(network, 8);
   if (!network->data) {
-    free_neural_network(network);
+    neural_free(network);
     return NULL;
   }
 
   return network;
 }
 
-const double *run_neural_network(neural_network_t *network, const double *input) {
+const double *neural_run(neural_network_t *network, const double *input) {
   memcpy(network->output, input, network->neuron_counts[0] * sizeof(double));
   for (size_t i = 1; i < network->num_hidden_layers + 2; i++) {
     calculate_output_layer(network, i);
@@ -89,8 +92,8 @@ const double *run_neural_network(neural_network_t *network, const double *input)
   return (const double *)(network->output + neural_layer_offset(network, network->num_hidden_layers + 1));
 }
 
-double train_neural_network(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
-                            double lr) {
+double neural_train(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
+                    double lr) {
   if (!network || !inputs || !desired_outputs || m == 0) {
     return NAN;
   }
@@ -262,52 +265,7 @@ double train_neural_network(neural_network_t *network, size_t m, const double *i
   return cost;
 }
 
-double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat) {
-  if (!network || !y || !y_hat || m == 0) {
-    return NAN;
-  }
-
-  double sum = 0.0;
-  const double mx2_inv = 1.0 / (2.0 * (double)m);
-  const size_t total = network->neuron_counts[network->num_hidden_layers + 1] * m;
-  for (size_t i = 0; i < total; ++i) {
-    const double diff = y[i] - y_hat[i];
-    sum += diff * diff * mx2_inv;
-  }
-  return sum;
-}
-
-void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t m, const double *A_in, double *A_out) {
-  size_t in_size = network->neuron_counts[in_layer];
-  size_t out_size = network->neuron_counts[in_layer + 1];
-  size_t out_offset = neural_layer_offset(network, in_layer + 1);
-
-  const double (*W)[in_size] = neural_layer_t_weights(network, in_layer + 1);
-  const double *b = network->bias + out_offset;
-
-  // A[L+1] = tanh(Z[L+1] = W[L+1] * A[L] + b[L+1])
-  for (size_t i = 0; i < out_size; ++i) {
-    double *A_out_i = A_out + i * m;
-    for (size_t j = 0; j < m; ++j) {
-      A_out_i[j] = b[i];
-    }
-
-    // Cache optimized matrix multiplication
-    for (size_t k = 0; k < in_size; ++k) {
-      const double W_ik = W[i][k];
-      const double *A_in_k = A_in + k * m;
-      for (size_t j = 0; j < m; ++j) {
-        A_out_i[j] += W_ik * A_in_k[j];
-      }
-    }
-
-    for (size_t j = 0; j < m; ++j) {
-      A_out_i[j] = tanh(A_out_i[j]);
-    }
-  }
-}
-
-void randomize_weights(neural_network_t *network, double min_weight, double max_weight) {
+void neural_randomize_weights(neural_network_t *network, double min_weight, double max_weight) {
   if (!network || !network->t_weights) {
     return;
   }
@@ -317,7 +275,7 @@ void randomize_weights(neural_network_t *network, double min_weight, double max_
   }
 }
 
-void randomize_bias(neural_network_t *network, double min_bias, double max_bias) {
+void neural_randomize_bias(neural_network_t *network, double min_bias, double max_bias) {
   if (!network || !network->bias) {
     return;
   }
@@ -339,7 +297,7 @@ double (*neural_layer_t_weights(neural_network_t *network, size_t out_layer))[] 
   return (double (*)[in_size])(network->t_weights + offset);
 }
 
-void write_neural_network(neural_network_t *network, FILE *fp) {
+void neural_print(neural_network_t *network, FILE *fp) {
   if (!network || !fp) {
     return;
   }
@@ -400,7 +358,7 @@ void write_neural_network(neural_network_t *network, FILE *fp) {
   }
 }
 
-void free_neural_network(neural_network_t *network) {
+void neural_free(neural_network_t *network) {
   if (!network) {
     return;
   }
@@ -431,6 +389,52 @@ void free_neural_network(neural_network_t *network) {
   free(network);
 }
 
+static double calculate_cost(neural_network_t *network, size_t m, const double *y, const double *y_hat) {
+  if (!network || !y || !y_hat || m == 0) {
+    return NAN;
+  }
+
+  double sum = 0.0;
+  const double mx2_inv = 1.0 / (2.0 * (double)m);
+  const size_t total = network->neuron_counts[network->num_hidden_layers + 1] * m;
+  for (size_t i = 0; i < total; ++i) {
+    const double diff = y[i] - y_hat[i];
+    sum += diff * diff * mx2_inv;
+  }
+  return sum;
+}
+
+static void forward_propagate_layer(neural_network_t *network, size_t in_layer, size_t m, const double *A_in,
+                                    double *A_out) {
+  size_t in_size = network->neuron_counts[in_layer];
+  size_t out_size = network->neuron_counts[in_layer + 1];
+  size_t out_offset = neural_layer_offset(network, in_layer + 1);
+
+  const double (*W)[in_size] = neural_layer_t_weights(network, in_layer + 1);
+  const double *b = network->bias + out_offset;
+
+  // A[L+1] = tanh(Z[L+1] = W[L+1] * A[L] + b[L+1])
+  for (size_t i = 0; i < out_size; ++i) {
+    double *A_out_i = A_out + i * m;
+    for (size_t j = 0; j < m; ++j) {
+      A_out_i[j] = b[i];
+    }
+
+    // Cache optimized matrix multiplication
+    for (size_t k = 0; k < in_size; ++k) {
+      const double W_ik = W[i][k];
+      const double *A_in_k = A_in + k * m;
+      for (size_t j = 0; j < m; ++j) {
+        A_out_i[j] += W_ik * A_in_k[j];
+      }
+    }
+
+    for (size_t j = 0; j < m; ++j) {
+      A_out_i[j] = tanh(A_out_i[j]);
+    }
+  }
+}
+
 static size_t neural_layer_offset(neural_network_t *network, size_t layer) {
   size_t offset = 0;
   for (size_t i = 0; i < layer; i++) {
@@ -459,13 +463,7 @@ static void calculate_output_layer(neural_network_t *network, size_t output_laye
   }
 }
 
-/**
- * @brief Allocate memory for the data used in training and inference.
- *
- * @param network The neural network for which to allocate data.
- * @param m The number of training examples.
- * @return A pointer to the allocated data, or NULL if allocation fails.
- */
+// Allocate memory for the data used in training and inference.
 static char *allocate_data(neural_network_t *network, size_t m) {
   if (!network || m == 0) {
     return NULL;
