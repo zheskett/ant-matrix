@@ -301,16 +301,16 @@ void neural_print(neural_network_t *network, FILE *fp) {
   }
 
   fprintf(fp, "Neural Network Structure:\n");
-  fprintf(fp, "Inputs: %zu\n", network->neuron_counts[0]);
-  fprintf(fp, "Hidden Layers: %zu\n", network->num_hidden_layers);
+  fprintf(fp, "Inputs: %d\n", network->neuron_counts[0]);
+  fprintf(fp, "Hidden Layers: %d\n", network->num_hidden_layers);
   for (int i = 0; i < network->num_hidden_layers; i++) {
-    fprintf(fp, "Hidden Layer %zu: %zu neurons\n", i + 1, network->neuron_counts[i + 1]);
+    fprintf(fp, "Hidden Layer %d: %d neurons\n", i + 1, network->neuron_counts[i + 1]);
   }
-  fprintf(fp, "Outputs: %zu\n", network->neuron_counts[network->num_hidden_layers + 1]);
+  fprintf(fp, "Outputs: %d\n", network->neuron_counts[network->num_hidden_layers + 1]);
 
   fprintf(fp, "\nWeights:");
   for (int i = 0; i < network->num_hidden_layers + 1; i++) {
-    fprintf(fp, "\nLayer %zu-%zu:\n", i, i + 1);
+    fprintf(fp, "\nLayer %d-%d:\n", i, i + 1);
     double (*layer_weights)[network->neuron_counts[i]] = neural_layer_t_weights(network, i + 1);
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       fprintf(fp, "[");
@@ -326,7 +326,7 @@ void neural_print(neural_network_t *network, FILE *fp) {
 
   fprintf(fp, "\nBiases:\n");
   for (int i = 1; i < network->num_hidden_layers + 2; i++) {
-    fprintf(fp, "Layer %zu: ", i);
+    fprintf(fp, "Layer %d: ", i);
     double *bias = network->bias + neural_layer_offset(network, i);
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       if (j > 0) {
@@ -339,7 +339,7 @@ void neural_print(neural_network_t *network, FILE *fp) {
 
   fprintf(fp, "\nOutputs:\n");
   for (int i = 0; i < network->num_hidden_layers + 2; i++) {
-    fprintf(fp, "Layer %zu: ", i);
+    fprintf(fp, "Layer %d: ", i);
     double *output = network->output + neural_layer_offset(network, i);
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       if (j > 0) {
