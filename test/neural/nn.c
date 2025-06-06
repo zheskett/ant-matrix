@@ -7,7 +7,7 @@
 #include <time.h>
 
 int test_xor() {
-  size_t neuron_counts[] = {2, 2, 1};
+  int neuron_counts[] = {2, 2, 1};
   neural_network_t *network = neural_create(1, neuron_counts);
   assert(network != NULL);
 
@@ -18,7 +18,7 @@ int test_xor() {
   const double inputs[4][2] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
   const double expected_outputs[4][1] = {{-1}, {1}, {1}, {-1}};
 
-  for (size_t i = 0; i < 1000; i++) {
+  for (int i = 0; i < 1000; i++) {
     // Randomly select 2 inputs and their expected output
     int rand_index = rand() % 4;
     int prev_index = rand_index;
@@ -37,7 +37,7 @@ int test_xor() {
   neural_run(network, inputs[1]);
   neural_print(network, stdout);
 
-  for (size_t i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
     const double *output = neural_run(network, inputs[i]);
     printf("Input: [%f, %f] -> Output: [%f]\n", inputs[i][0], inputs[i][1], output[0]);
     fflush(stdout);
@@ -49,11 +49,11 @@ int test_xor() {
 }
 
 int main() {
-  size_t neuron_counts[] = {3, 20, 4, 3, 4, 5};
-  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
+  int neuron_counts[] = {3, 20, 4, 3, 4, 5};
+  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(int)) - 2, neuron_counts);
 
   assert(network != NULL);
-  assert(network->num_hidden_layers == (sizeof(neuron_counts) / sizeof(size_t)) - 2);
+  assert(network->num_hidden_layers == (sizeof(neuron_counts) / sizeof(int)) - 2);
   assert(network->neuron_counts != NULL);
   assert(network->output != NULL);
   assert(network->t_weights != NULL);
@@ -66,7 +66,7 @@ int main() {
   double input[] = {0.5, 0.2, 0.1};
   const double *output = neural_run(network, input);
   printf("[");
-  for (size_t i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
+  for (int i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
     if (i > 0 && i < network->neuron_counts[network->num_hidden_layers + 1]) {
       printf(", ");
     }

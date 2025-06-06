@@ -520,8 +520,8 @@ static void reset_simulation() {
 }
 
 static neural_network_t *create_ant_net() {
-  const size_t neuron_counts[] = ANN_NEURON_COUNTS;
-  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(size_t)) - 2, neuron_counts);
+  const int neuron_counts[] = ANN_NEURON_COUNTS;
+  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(int)) - 2, neuron_counts);
   if (!network) {
     fprintf(stderr, "Failed to create neural network\n");
     exit(EXIT_FAILURE);
@@ -538,7 +538,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
   bool run = true;
   const double *input_ptr = inputs;
   const double *output_ptr = outputs;
-  size_t m = 1;
+  int m = 1;
 
   // Accumulate inputs and outputs for batch training with single network
   if (!PER_ANT_NETWORK) {
@@ -547,7 +547,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
     run = input_list.length >= ANN_BATCH_SIZE * ANN_INPUTS;
     input_ptr = input_list.data;
     output_ptr = output_list.data;
-    m = (size_t)input_list.length / ANN_INPUTS;
+    m = input_list.length / ANN_INPUTS;
   }
 
   if (run) {

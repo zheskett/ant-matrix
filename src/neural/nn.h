@@ -17,15 +17,15 @@
  * @brief Artificial Neural Network (ANN) structure for a neural network.
  */
 typedef struct {
-  size_t num_hidden_layers; /**< Number of hidden layers */
-  size_t total_neurons;     /**< Total number of neurons in the network */
-  size_t total_weights;     /**< Total number of weights in the network */
-  size_t data_size;         /**< Size of the data used for training and inference */
-  size_t *neuron_counts;    /**< Array containing the number of neurons in each layer */
-  double *output;           /**< 2D array: Output of each neuron in the network */
-  double *t_weights;        /**< Weights for the connections between neurons, stored as transposed */
-  double *bias;             /**< 2D array: Biases for each neuron in the network */
-  char *data;               /**< Pointer to the data used for training and inference */
+  int *neuron_counts;    /**< Array containing the number of neurons in each layer */
+  double *output;        /**< 2D array: Output of each neuron in the network */
+  double *t_weights;     /**< Weights for the connections between neurons, stored as transposed */
+  double *bias;          /**< 2D array: Biases for each neuron in the network */
+  char *data;            /**< Pointer to the data used for training and inference */
+  size_t data_size;      /**< Size of the data used for training and inference */
+  int num_hidden_layers; /**< Number of hidden layers */
+  int total_neurons;     /**< Total number of neurons in the network */
+  int total_weights;     /**< Total number of weights in the network */
 } neural_network_t;
 
 /**
@@ -36,7 +36,7 @@ typedef struct {
  * layers.
  * @return A pointer to the created neural network, or NULL on failure.
  */
-neural_network_t *neural_create(size_t num_hidden_layers, const size_t neuron_counts_array[]);
+neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_array[]);
 
 /**
  * @brief Calculate the output of the neural network for a given input.
@@ -57,8 +57,7 @@ const double *neural_run(neural_network_t *network, const double *input);
  * @param lr The learning rate for weight updates.
  * @return The cost of the training process, which can be used to evaluate the performance of the network.
  */
-double neural_train(neural_network_t *network, size_t m, const double *inputs, const double *desired_outputs,
-                    double lr);
+double neural_train(neural_network_t *network, int m, const double *inputs, const double *desired_outputs, double lr);
 
 /**
  * @brief Randomize the weights of the neural network.
@@ -86,7 +85,7 @@ void neural_randomize_bias(neural_network_t *network, double min_bias, double ma
  *
  * Usage: double (*layer_weights)[network->neuron_counts[out_layer - 1]] = neural_layer_weights(network, out_layer);
  */
-double (*neural_layer_t_weights(neural_network_t *network, size_t out_layer))[];
+double (*neural_layer_t_weights(neural_network_t *network, int out_layer))[];
 
 /**
  * @brief Print the structure and weights of the neural network.
