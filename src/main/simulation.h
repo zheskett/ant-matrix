@@ -1,3 +1,11 @@
+/**
+ * @file simulation.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief Header file for the ant simulation program.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef SIMULATION_H
 #define SIMULATION_H
@@ -5,7 +13,7 @@
 #include "entities/ant.h"
 #include "entities/food.h"
 
-// Multiple networks per ant
+// Multiple networks per ant?
 #define PER_ANT_NETWORK 1
 
 #define LEARN_RATE 0.16
@@ -34,16 +42,18 @@
 #define WARP_SPEED 50.0
 #define RESET_TIME 60.0
 
-extern dyn_arr_ant_t ant_list;
-extern dyn_arr_food_t food_list;
+extern dyn_arr_ant_t g_ant_list;
+extern dyn_arr_food_t g_food_list;
 
+/**
+ * @brief Start the simulation.
+ *
+ * Initializes the simulation, sets up the window, and runs the main loop.
+ *
+ * @param argc Argument count.
+ * @param argv Argument vector.
+ * @return Exit code of the simulation.
+ */
 int start(int argc, char **argv);
-void fixed_update(double fixed_delta);
-void render(void);
-void render_present(void);
-void resize_window(int w, int h);
-void update(void);
-void initialize(void);
-void input(void);
 
 #endif /* SIMULATION_H */

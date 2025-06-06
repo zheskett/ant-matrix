@@ -1,14 +1,25 @@
+/**
+ * @file food.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief Header file for the food entity in the ant simulation program.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef FOOD_H
 #define FOOD_H
 #include "util/dynarr.h"
 #include "util/util.h"
 
+/**
+ * @brief Represents a food object in the simulation.
+ */
 typedef struct {
-  vector2d_t pos;
-  double radius;
-  double detection_radius;
-  int amount;
+  vector2d_t pos;          // Position of the food
+  double radius;           // Radius of the food object
+  double detection_radius; // Radius for detecting food by ants
+  int amount;              // Amount of food available
 } food_t;
 
 typedef dyn_arr_def(food_t *) dyn_arr_food_t;

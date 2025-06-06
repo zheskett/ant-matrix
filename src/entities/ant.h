@@ -1,3 +1,11 @@
+/**
+ * @file ant.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief Header file for the ant entity in the ant simulation program.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef ANT_H
 #define ANT_H
@@ -22,15 +30,18 @@ typedef struct {
   double angle;
 } ant_logic_t;
 
+/**
+ * @brief Represents an ant entity in the simulation.
+ */
 typedef struct {
-  Texture2D *texture;
-  food_t *nearest_food;
-  neural_network_t *net;
-  vector2d_t spawn;
-  vector2d_t pos;
-  double rotation;
-  bool has_food;
-  bool is_coliding;
+  Texture2D *texture;    // Pointer to the texture of the ant
+  food_t *nearest_food;  // The nearest detected food object (in food list)
+  neural_network_t *net; // Pointer to the neural network for the ant's behavior
+  vector2d_t spawn;      // The spawn position of the ant
+  vector2d_t pos;        // The current position of the ant
+  double rotation;       // The current rotation of the ant in radians
+  bool has_food;         // Whether the ant is currently carrying food
+  bool is_coliding;      // Whether the ant is currently colliding with something
 } ant_t;
 
 typedef dyn_arr_def(ant_t *) dyn_arr_ant_t;

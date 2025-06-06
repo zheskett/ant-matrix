@@ -2,15 +2,25 @@
 
 #include <time.h>
 
-#include "neural/nn.h"
-#include "raylib.h"
 #include "raymath.h"
 #include "util/gui.h"
+
+#pragma region function_declarations
+
+static void input(void);
+static void update(void);
+static void fixed_update(double fixed_delta);
+static void render(void);
+static void initialize(void);
+static void resize_window(int w, int h);
+static void render_present(void);
 
 static void reset_simulation(void);
 static void train_ants(double fixed_delta);
 static neural_network_t *create_ant_net();
 static void network_train_step(ant_t *ant, const double *inputs, const double *outputs);
+
+#pragma endregion
 
 #pragma region setup
 
@@ -49,8 +59,8 @@ dyn_arr_dbl_t input_list;
 dyn_arr_dbl_t output_list;
 
 ant_t *ant_data = NULL;
-dyn_arr_ant_t ant_list;
-dyn_arr_food_t food_list;
+dyn_arr_ant_t g_ant_list;
+dyn_arr_food_t g_food_list;
 
 int epoch = 0;
 const int starting_ants = 200;
@@ -91,21 +101,21 @@ int start(int argc, char **argv) {
   UnloadTexture(ant_texture);
 
   if (ant_data) {
-    for (int i = 0; i < ant_list.length; i++) {
-      ant_t *ant = dyn_arr_get(ant_list, i);
+    for (int i = 0; i < g_ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(g_ant_list, i);
       if (PER_ANT_NETWORK) {
         free_neural_network(ant->net);
       }
     }
     free(ant_data);
   }
-  dyn_arr_free(ant_list);
+  dyn_arr_free(g_ant_list);
 
-  for (int i = 0; i < food_list.length; i++) {
-    food_t *food = dyn_arr_get(food_list, i);
+  for (int i = 0; i < g_food_list.length; i++) {
+    food_t *food = dyn_arr_get(g_food_list, i);
     food_free(food);
   }
-  dyn_arr_free(food_list);
+  dyn_arr_free(g_food_list);
   dyn_arr_free(input_list);
   dyn_arr_free(output_list);
   if (ant_network) {
@@ -117,7 +127,7 @@ int start(int argc, char **argv) {
   return 0;
 }
 
-void input() {
+static void input() {
   Vector2 dir = (Vector2){0, 0};
   Vector2 mouse_delta = (Vector2){0, 0};
   float zoom_delta = 0;
@@ -177,7 +187,7 @@ void input() {
   prev_mouse_pos = mouse_pos;
 }
 
-void update() {
+static void update() {
   const double fixed_delta = 1.0 / (double)TICK_RATE;
   const double scaled_delta = fixed_delta / tick_speed;
   static double simulated_time = 0.0;
@@ -238,10 +248,10 @@ void update() {
   }
 }
 
-void fixed_update(double fixed_delta) {
+static void fixed_update(double fixed_delta) {
   if (training && random_session) {
-    for (int i = 0; i < ant_list.length; i++) {
-      ant_t *ant = dyn_arr_get(ant_list, i);
+    for (int i = 0; i < g_ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(g_ant_list, i);
       ant->rotation = (rand() % 360) * DEG2RAD_D;
       ant->pos.x = rand() % WORLD_W;
       ant->pos.y = rand() % WORLD_H;
@@ -252,7 +262,7 @@ void fixed_update(double fixed_delta) {
   train_ants(fixed_delta);
 }
 
-void render() {
+static void render() {
   Camera2D cam = {0};
   cam.target = target;
   cam.offset = (Vector2){SCREEN_W / 2.0f, SCREEN_H / 2.0f};
@@ -265,12 +275,12 @@ void render() {
 
   DrawCircleV(v2d_to_v2(spawn), ANT_SPAWN_RADIUS, DARKBLUE);
 
-  for (int i = 0; i < food_list.length; i++) {
-    food_t *food = dyn_arr_get(food_list, i);
+  for (int i = 0; i < g_food_list.length; i++) {
+    food_t *food = dyn_arr_get(g_food_list, i);
     food_draw(food);
   }
-  for (int i = 0; i < ant_list.length; i++) {
-    ant_t *ant = dyn_arr_get(ant_list, i);
+  for (int i = 0; i < g_ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(g_ant_list, i);
     ant_draw(ant);
   }
 
@@ -304,13 +314,13 @@ void render() {
   EndTextureMode();
 }
 
-void initialize() {
+static void initialize() {
   srand(time(NULL));
   if (!PER_ANT_NETWORK) {
     ant_network = create_ant_net();
   }
-  dyn_arr_init(ant_list);
-  dyn_arr_init(food_list);
+  dyn_arr_init(g_ant_list);
+  dyn_arr_init(g_food_list);
   dyn_arr_init(input_list);
   dyn_arr_init(output_list);
 
@@ -342,7 +352,7 @@ void initialize() {
     ant->rotation = (rand() % 360) * DEG2RAD_D;
     ant->has_food = false;
     ant->is_coliding = false;
-    dyn_arr_push(ant_list, ant);
+    dyn_arr_push(g_ant_list, ant);
   }
 
   reset_simulation();
@@ -356,7 +366,7 @@ void initialize() {
                     (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
 }
 
-void resize_window(int w, int h) {
+static void resize_window(int w, int h) {
   SetWindowSize(w, h);
   window_w = w;
   window_h = h;
@@ -372,7 +382,7 @@ void resize_window(int w, int h) {
   letterbox = (Rectangle){offset_x, offset_y, ratio * SCREEN_W, ratio * SCREEN_H};
 }
 
-void render_present() {
+static void render_present() {
   /* render offscreen to display */
 
   BeginDrawing();
@@ -385,8 +395,8 @@ void render_present() {
 }
 
 static void train_ants(double fixed_delta) {
-  for (int i = 0; i < ant_list.length; i++) {
-    ant_t *ant = dyn_arr_get(ant_list, i);
+  for (int i = 0; i < g_ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(g_ant_list, i);
     ant_update_nearest_food(ant);
 
     // Update the neural network
@@ -476,17 +486,17 @@ static void train_ants(double fixed_delta) {
 }
 
 static void reset_simulation() {
-  for (int i = 0; i < food_list.length; i++) {
-    food_t *food = dyn_arr_get(food_list, i);
+  for (int i = 0; i < g_food_list.length; i++) {
+    food_t *food = dyn_arr_get(g_food_list, i);
     food_free(food);
   }
-  dyn_arr_clear(food_list);
+  dyn_arr_clear(g_food_list);
 
   random_session = rand() % 3 != 0;
 
   // Position ants at spawn
-  for (int i = 0; i < ant_list.length; i++) {
-    ant_t *ant = dyn_arr_get(ant_list, i);
+  for (int i = 0; i < g_ant_list.length; i++) {
+    ant_t *ant = dyn_arr_get(g_ant_list, i);
     ant->pos = spawn;
     ant->rotation = (rand() % 360) * DEG2RAD_D;
     ant->has_food = false;
@@ -504,7 +514,7 @@ static void reset_simulation() {
       food_t *food =
           create_food(food_pos, food_radius, food_detection_radius,
                       rand() % (max_starting_food_amount - min_starting_food_amount) + min_starting_food_amount);
-      dyn_arr_push(food_list, food);
+      dyn_arr_push(g_food_list, food);
     }
   }
 }

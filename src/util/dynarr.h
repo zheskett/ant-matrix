@@ -1,3 +1,11 @@
+/**
+ * @file dynarr.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief Dynamic array implementation with macro definitions.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef DYNARR_H
 #define DYNARR_H
@@ -14,7 +22,6 @@
     int capacity;                                                                                                      \
   }
 
-// The do, while(0) allows the macro to be used in a single statement context (if(<statement>) <macro>;)
 #define dyn_arr_init(dyn_arr)                                                                                          \
   do {                                                                                                                 \
     (dyn_arr).data = malloc(DYN_ARR_INIT_CAPACITY * sizeof(*(dyn_arr).data));                                          \

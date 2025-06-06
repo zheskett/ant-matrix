@@ -1,3 +1,11 @@
+/**
+ * @file nn.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief Header file for the neural network implementation in the ant simulation program.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef NEURAL_NETWORK_H
 #define NEURAL_NETWORK_H

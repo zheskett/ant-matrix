@@ -35,8 +35,8 @@ void ant_update_nearest_food(ant_t *ant) {
 
   circled_t detector_circle = ant_get_detector_circle(ant);
   double nearest_distance = DBL_MAX;
-  for (int i = 0; i < food_list.length; i++) {
-    food_t *food = dyn_arr_get(food_list, i);
+  for (int i = 0; i < g_food_list.length; i++) {
+    food_t *food = dyn_arr_get(g_food_list, i);
     bool collide = circle_collide_circle(detector_circle, (circled_t){food->pos, food->detection_radius});
     if (!collide) {
       continue;
@@ -167,9 +167,9 @@ bool ant_gather(ant_t *ant) {
     food_grab(ant->nearest_food);
     ant->has_food = true;
     if (ant->nearest_food->amount <= 0) {
-      for (int i = 0; i < food_list.length; i++) {
-        if (dyn_arr_get(food_list, i) == ant->nearest_food) {
-          dyn_arr_remove(food_list, i);
+      for (int i = 0; i < g_food_list.length; i++) {
+        if (dyn_arr_get(g_food_list, i) == ant->nearest_food) {
+          dyn_arr_remove(g_food_list, i);
           break;
         }
       }

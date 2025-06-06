@@ -1,3 +1,11 @@
+/**
+ * @file gui.h
+ * @author Zachary Heskett (zheskett@gmail.com)
+ * @brief GUI utilities for the ant simulation program.
+ *
+ * @copyright Copyright (c) 2025
+ *
+ */
 #pragma once
 #ifndef GUI_H
 #define GUI_H
@@ -17,8 +25,33 @@
 #define CHECKBOX_BACKGROUND_COLOR BUTTON_COLOR
 #define CHECKBOX_CHECKED_COLOR (Color){0, 150, 0, 255}
 
-bool gui_draw_button(Vector2 mouse_pos, Rectangle bounds, const char* text);
-bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char* text, bool checked);
-void gui_draw_label(Vector2 position, const char* text);
+/**
+ * @brief Draws a button with the specified text and returns whether it was clicked.
+ *
+ * @param mouse_pos The current mouse position.
+ * @param bounds The rectangle bounds of the button.
+ * @param text The text to display on the button.
+ * @return true if the button was clicked, false otherwise.
+ */
+bool gui_draw_button(Vector2 mouse_pos, Rectangle bounds, const char *text);
+
+/**
+ * @brief Draws a checkbox with the specified text and returns whether it was checked.
+ *
+ * @param mouse_pos The current mouse position.
+ * @param position The position of the checkbox.
+ * @param text The text to display next to the checkbox.
+ * @param checked The initial state of the checkbox.
+ * @return true if the checkbox was checked, false otherwise.
+ */
+bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char *text, bool checked);
+
+/**
+ * @brief Draws a label at the specified position with the given text.
+ *
+ * @param position The position to draw the label at.
+ * @param text The text to display in the label.
+ */
+void gui_draw_label(Vector2 position, const char *text);
 
 #endif /* GUI_H */
