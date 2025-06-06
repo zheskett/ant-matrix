@@ -358,6 +358,24 @@ void neural_print(neural_network_t *network, FILE *fp) {
   }
 }
 
+neural_network_t *neural_copy(const neural_network_t *network) {
+  if (!network) {
+    return NULL;
+  }
+
+  neural_network_t *copy = neural_create(network->num_hidden_layers, network->neuron_counts);
+  if (!copy) {
+    return NULL;
+  }
+
+  // Copy weights, biases, and outputs
+  memcpy(copy->t_weights, network->t_weights, network->total_weights * sizeof(double));
+  memcpy(copy->bias, network->bias, network->total_neurons * sizeof(double));
+  memcpy(copy->output, network->output, network->total_neurons * sizeof(double));
+
+  return copy;
+}
+
 void neural_free(neural_network_t *network) {
   if (!network) {
     return;

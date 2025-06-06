@@ -34,7 +34,7 @@ typedef struct {
  * @param num_hidden_layers The number of hidden layers in the neural network.
  * @param neuron_counts_array An array containing the number of neurons in each layer, including input and output
  * layers.
- * @return A pointer to the created neural network, or \c NULL on failure.
+ * @return A pointer to the created neural network, or NULL on failure.
  */
 neural_network_t *neural_create(size_t num_hidden_layers, const size_t neuron_counts_array[]);
 
@@ -95,6 +95,14 @@ double (*neural_layer_t_weights(neural_network_t *network, size_t out_layer))[];
  * @param fp The file pointer to write the neural network structure to.
  */
 void neural_print(neural_network_t *network, FILE *fp);
+
+/**
+ * @brief Create a copy of the neural network.
+ *
+ * @param network The neural network to copy.
+ * @return A pointer to the copied neural network, or NULL on failure.
+ */
+neural_network_t *neural_copy(const neural_network_t *network);
 
 /**
  * @brief Free the memory allocated for the neural network.
