@@ -73,7 +73,7 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
   }
 
   // Calculate the size of the data used for training and inference (8 is arbitrary)
-  allocate_data(network, 8);
+  allocate_data(network, INITIAL_DATA_SIZE);
   if (!network->data) {
     neural_free(network);
     return NULL;
@@ -354,6 +354,131 @@ void neural_print(neural_network_t *network, FILE *fp) {
   if (ferror(fp)) {
     fprintf(stderr, "Error writing neural network to file.\n");
   }
+}
+
+bool neural_write(neural_network_t *network, const char *filename) {
+  if (!network || !filename) {
+    return false;
+  }
+
+  FILE *fp = fopen(filename, "wb");
+  if (!fp) {
+    fprintf(stderr, "Could not open file %s", filename);
+    return false;
+  }
+
+  int neural_structure[3] = {network->num_hidden_layers, network->total_neurons, network->total_weights};
+  fwrite(neural_structure, sizeof(int), sizeof(neural_structure) / sizeof(int), fp);
+
+  // Write neuron counts, t_weights, bias. Ignore output/data
+  fwrite(network->neuron_counts, sizeof(int), network->num_hidden_layers + 2, fp);
+  fwrite(network->t_weights, sizeof(double), network->total_weights, fp);
+  fwrite(network->bias, sizeof(double), network->total_neurons, fp);
+
+  if (ferror(fp)) {
+    fclose(fp);
+    fprintf(stderr, "Could not write to file %s", filename);
+    return false;
+  }
+
+  fclose(fp);
+  return true;
+}
+
+neural_network_t *neural_read(const char *filename) {
+  if (!filename) {
+    return NULL;
+  }
+
+  FILE *fp = fopen(filename, "rb");
+  if (!fp) {
+    fprintf(stderr, "Could not open file %s", filename);
+    return NULL;
+  }
+
+  int neural_structure[3];
+  fread(neural_structure, sizeof(int), sizeof(neural_structure) / sizeof(int), fp);
+  if (ferror(fp)) {
+    fclose(fp);
+    fprintf(stderr, "Could not read file %s", filename);
+    return NULL;
+  }
+
+  int num_hidden_layers = neural_structure[0];
+  int total_neurons = neural_structure[1];
+  int total_weights = neural_structure[2];
+
+  int *neuron_counts = malloc((num_hidden_layers + 2) * sizeof(int));
+  if (!neuron_counts) {
+    fclose(fp);
+    return NULL;
+  }
+  fread(neuron_counts, sizeof(int), num_hidden_layers + 2, fp);
+  if (ferror(fp)) {
+    fclose(fp);
+    fprintf(stderr, "Could not read file %s", filename);
+    return NULL;
+  }
+
+  double *t_weights = malloc(total_weights * sizeof(double));
+  if (!t_weights) {
+    free(neuron_counts);
+    fclose(fp);
+    return NULL;
+  }
+  fread(t_weights, sizeof(double), total_weights, fp);
+  if (ferror(fp)) {
+    free(neuron_counts);
+    free(t_weights);
+    fclose(fp);
+    fprintf(stderr, "Could not read file %s", filename);
+    return NULL;
+  }
+
+  double *bias = malloc(total_neurons * sizeof(double));
+  if (!bias) {
+    free(neuron_counts);
+    free(t_weights);
+    fclose(fp);
+    return NULL;
+  }
+  fread(bias, sizeof(double), total_neurons, fp);
+  if (ferror(fp)) {
+    free(neuron_counts);
+    free(t_weights);
+    free(bias);
+    fclose(fp);
+    fprintf(stderr, "Could not read file %s", filename);
+    return NULL;
+  }
+
+  fclose(fp);
+
+  neural_network_t *network = malloc(sizeof(neural_network_t));
+  if (!network) {
+    free(neuron_counts);
+    free(t_weights);
+    free(bias);
+    return NULL;
+  }
+
+  network->num_hidden_layers = num_hidden_layers;
+  network->total_neurons = total_neurons;
+  network->total_weights = total_weights;
+  network->neuron_counts = neuron_counts;
+  network->output = calloc(total_neurons, sizeof(double));
+  network->t_weights = t_weights;
+  network->bias = bias;
+
+  network->data = NULL;
+  network->data_size = 0;
+  allocate_data(network, INITIAL_DATA_SIZE);
+  if (!network->data) {
+    neural_free(network);
+    return NULL;
+  }
+
+  return network;
 }
 
 neural_network_t *neural_copy(const neural_network_t *network) {

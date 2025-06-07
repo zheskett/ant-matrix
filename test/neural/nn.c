@@ -48,6 +48,47 @@ int test_xor() {
   return EXIT_SUCCESS;
 }
 
+int test_read_write() {
+  int neuron_counts[] = {3, 20, 4, 3, 4, 5};
+  neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(int)) - 2, neuron_counts);
+  assert(network != NULL);
+
+  neural_randomize_weights(network, -1.0, 1.0);
+  neural_randomize_bias(network, -0.5, 0.5);
+
+  if (!neural_write(network, "neural_write_test.bin")) {
+    return EXIT_FAILURE;
+  }
+
+  neural_network_t *read_network = neural_read("neural_write_test.bin");
+  if (!read_network) {
+    return EXIT_FAILURE;
+  }
+
+  assert(read_network->num_hidden_layers == network->num_hidden_layers);
+  assert(read_network->total_neurons == network->total_neurons);
+  assert(read_network->total_weights == network->total_weights);
+  assert(read_network->neuron_counts != NULL);
+  for (int i = 0; i < read_network->num_hidden_layers + 2; i++) {
+    assert(read_network->neuron_counts[i] == network->neuron_counts[i]);
+  }
+  assert(read_network->output != NULL);
+  assert(read_network->t_weights != NULL);
+  for (int i = 0; i < read_network->total_weights; i++) {
+    assert(read_network->t_weights[i] == network->t_weights[i]);
+  }
+  assert(read_network->bias != NULL);
+  for (int i = 0; i < read_network->total_neurons; i++) {
+    assert(read_network->bias[i] == network->bias[i]);
+  }
+  assert(read_network->data != NULL);
+  assert(read_network->data_size == INITIAL_DATA_SIZE * sizeof(double));
+
+  neural_free(read_network);
+  neural_free(network);
+  return EXIT_SUCCESS;
+}
+
 int main() {
   int neuron_counts[] = {3, 20, 4, 3, 4, 5};
   neural_network_t *network = neural_create((sizeof(neuron_counts) / sizeof(int)) - 2, neuron_counts);
@@ -65,14 +106,14 @@ int main() {
 
   double input[] = {0.5, 0.2, 0.1};
   const double *output = neural_run(network, input);
-  printf("[");
-  for (int i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
-    if (i > 0 && i < network->neuron_counts[network->num_hidden_layers + 1]) {
-      printf(", ");
-    }
-    printf("%f", output[i]);
-  }
-  printf("]\n");
+  // printf("[");
+  // for (int i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
+  //   if (i > 0 && i < network->neuron_counts[network->num_hidden_layers + 1]) {
+  //     printf(", ");
+  //   }
+  //   printf("%f", output[i]);
+  // }
+  // printf("]\n");
   // neural_print(network, stdout);
 
   double score = neural_train(network, 1, input, output, 0.01);
@@ -83,5 +124,11 @@ int main() {
 
   neural_free(network);
   fflush(stdout);
-  return test_xor();
+  int xor = test_xor();
+  int read_write = test_read_write();
+  if (xor != EXIT_SUCCESS || read_write != EXIT_SUCCESS) {
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
 }

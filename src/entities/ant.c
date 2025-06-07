@@ -196,12 +196,7 @@ bool ant_drop(ant_t *ant) {
   return false;
 }
 
-/**
- * @brief Update the ant's logic and behavior.
- *
- * @param ant Pointer to the ant entity.
- * @param delta_time Time since the last update.
- */
+// Update the ant's logic and behavior.
 static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
   if (!ant) {
     return (ant_logic_t){ANT_STEP_ACTION, 0.0};
