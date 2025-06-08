@@ -21,8 +21,10 @@ int nearest_16_by_9_height(int width) {
   }
 }
 
-// angle - TAU * floor(angle * 1/TAU);
-double constrain_angle(double angle) { return angle - TAU * floor(angle * 0.15915494309189535); }
+double constrain_angle(double angle) {
+  // angle - TAU * floor((angle * PI) * 1/TAU);
+  return angle - TAU * floor((angle + M_PI) * 0.15915494309189535);
+}
 
 Vector2 v2d_to_v2(vector2d_t v) { return (Vector2){(float)v.x, (float)v.y}; }
 vector2d_t v2_to_v2d(Vector2 v) { return (vector2d_t){(double)v.x, (double)v.y}; }

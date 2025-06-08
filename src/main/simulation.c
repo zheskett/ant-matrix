@@ -38,8 +38,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
  * 9: has food
  *
  * OUTPUT:
- * 0: change in angle cos
- * 1: change in angle sin
+ * 0: turn strength
  * 2: step
  * 3: gather
  * 4: drop
@@ -63,7 +62,7 @@ dyn_arr_ant_t g_ant_list;
 dyn_arr_food_t g_food_list;
 
 int epoch = 0;
-const int starting_ants = 200;
+const int starting_ants = 100;
 const int starting_food = 10;
 const int max_starting_food_amount = 200;
 const int min_starting_food_amount = 50;
@@ -201,12 +200,14 @@ static void update() {
       tick_speed = WARP_SPEED;
     } else {
       // How much faster or slower than 30 FPS the simulation is running
-      frame_time_avg = 0.7 * frame_time_avg + 0.3 * GetFrameTime();
+      frame_time_avg = 0.3 * frame_time_avg + 0.7 * GetFrameTime();
       const double ratio = 1 / (30.0 * frame_time_avg);
 
-      if (ratio < 1.1) {
-        tick_speed *= 0.95;
-      } else if (ratio > 1.4) {
+      if (ratio < 1.15) {
+        tick_speed *= 0.98;
+      } else if (ratio < 1.4) {
+        tick_speed -= 2.0;
+      } else if (ratio > 1.45) {
         tick_speed += 1.5;
       }
     }
@@ -430,19 +431,18 @@ static void train_ants(double fixed_delta) {
       ant_logic_t logic = ant_train_update(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = cos(logic.angle);
-      outputs[1] = sin(logic.angle);
+      outputs[0] = logic.turn_strength;
       // 0.9 to prevent picking step action when other actions should be taken
-      outputs[2] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
-      outputs[3] = logic.action == ANT_GATHER_ACTION ? 1.0 : -1.0;
-      outputs[4] = logic.action == ANT_DROP_ACTION ? 1.0 : -1.0;
+      outputs[1] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
+      outputs[2] = logic.action == ANT_GATHER_ACTION ? 1.0 : -0.9;
+      outputs[3] = logic.action == ANT_DROP_ACTION ? 1.0 : -0.9;
 
       int iterations = 1;
 
       if (logic.action == ANT_DROP_ACTION) {
-        iterations = 40;
+        iterations = 80;
       } else if (logic.action == ANT_GATHER_ACTION) {
-        iterations = 20;
+        iterations = 15;
       }
 
       // Train the neural network
@@ -452,25 +452,20 @@ static void train_ants(double fixed_delta) {
     } else {
       const double *pred = neural_run(ant->net, inputs);
       ant_logic_t logic = {0};
-      const double len = hypot(pred[0], pred[1]);
-      if (len > 0.0) {
-        logic.angle = constrain_angle(atan2(pred[1] / len, pred[0] / len));
-      } else {
-        logic.angle = 0.0;
-      }
-      int choice = 2;
+      logic.turn_strength = pred[0];
+      int choice = 1;
       logic.action = ANT_STEP_ACTION;
-      if (pred[3] > pred[choice]) {
+      if (pred[2] > pred[choice]) {
         logic.action = ANT_GATHER_ACTION;
-        choice = 3;
+        choice = 2;
       }
-      if (pred[4] > pred[choice]) {
+      if (pred[3] > pred[choice]) {
         logic.action = ANT_DROP_ACTION;
-        choice = 4;
+        choice = 3;
       }
 
       ant_run_update(ant, logic, fixed_delta);
-      if (rand() % 2000 == 0) {
+      if (rand() % 5000 == 0) {
         printf("Inputs: ");
         for (int j = 0; j < ANN_INPUTS; j++) {
           printf("%.3f ", inputs[j]);

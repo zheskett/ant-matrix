@@ -124,9 +124,7 @@ int main() {
 
   neural_free(network);
   fflush(stdout);
-  int xor = test_xor();
-  int read_write = test_read_write();
-  if (xor != EXIT_SUCCESS || read_write != EXIT_SUCCESS) {
+  if (test_xor() != EXIT_SUCCESS || test_read_write() != EXIT_SUCCESS) {
     return EXIT_FAILURE;
   }
 

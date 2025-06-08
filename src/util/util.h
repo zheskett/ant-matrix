@@ -57,7 +57,7 @@ typedef struct {
 int nearest_16_by_9_height(int width);
 
 /**
- * @brief Constrain an angle to the range [0, 2π).
+ * @brief Constrain an angle to the range [-π, π).
  *
  * @param angle The angle in radians to constrain.
  * @return The constrained angle in radians.

@@ -55,7 +55,7 @@ void ant_run_update(ant_t *ant, ant_logic_t logic, double delta_time) {
     return;
   }
 
-  ant_set_angle(ant, logic.angle);
+  ant_turn(ant, logic.turn_strength, delta_time);
   switch (logic.action) {
   case ANT_STEP_ACTION:
     ant_step(ant, delta_time);
@@ -120,12 +120,12 @@ circled_t ant_get_detector_circle(ant_t *ant) {
   return circle;
 }
 
-void ant_set_angle(ant_t *ant, double angle) {
+void ant_turn(ant_t *ant, double strength, double delta_time) {
   if (!ant) {
     return;
   }
 
-  ant->rotation = constrain_angle(ant->rotation + angle);
+  ant->rotation = constrain_angle(ant->rotation + strength * ANT_TURN_SPEED * delta_time);
 }
 
 bool ant_step(ant_t *ant, double delta_time) {
@@ -202,26 +202,29 @@ static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
     return (ant_logic_t){ANT_STEP_ACTION, 0.0};
   }
 
-  double face_direction = 0.0;
+  const double max_turn = ANT_TURN_SPEED * delta_time;
+  double turn_strength = 0.0;
   ant_action_t action = ANT_STEP_ACTION;
 
   // Collect food
   if (ant->has_food) {
     // Move towards the spawn point
-    vector2d_t direction = v2d_normalize(v2d_subtract(ant->spawn, ant->pos));
-    face_direction = atan2(direction.y, direction.x);
+    const vector2d_t direction = v2d_normalize(v2d_subtract(ant->spawn, ant->pos));
+    const double angle_delta = constrain_angle(atan2(direction.y, direction.x) - ant->rotation);
+    turn_strength = fmin(1.0, fabs(angle_delta / max_turn)) * (angle_delta < 0 ? -1.0 : 1.0);
 
     if (circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos)) {
       action = ANT_DROP_ACTION;
-      face_direction = ant->rotation + M_PI_2;
+      turn_strength = 1.0;
     }
   }
 
   // Gather food
   else if (ant->nearest_food) {
     // Move towards the closest food
-    vector2d_t direction = v2d_normalize(v2d_subtract(ant->nearest_food->pos, ant->pos));
-    face_direction = atan2(direction.y, direction.x);
+    const vector2d_t direction = v2d_normalize(v2d_subtract(ant->nearest_food->pos, ant->pos));
+    const double angle_delta = constrain_angle(atan2(direction.y, direction.x) - ant->rotation);
+    turn_strength = fmin(1.0, fabs(angle_delta / max_turn)) * (angle_delta < 0 ? -1.0 : 1.0);
 
     if (circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos)) {
       action = ANT_GATHER_ACTION;
@@ -230,11 +233,11 @@ static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
 
   else {
     if (ant->is_coliding) {
-      face_direction = ant->rotation + M_PI * delta_time;
+      turn_strength = 1.0;
     } else {
-      face_direction = ant->rotation + (M_PI / 64.0) * delta_time;
+      turn_strength = 0.02;
     }
   }
 
-  return (ant_logic_t){action, constrain_angle(face_direction - ant->rotation)};
+  return (ant_logic_t){action, turn_strength};
 }

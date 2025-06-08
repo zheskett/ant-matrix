@@ -19,6 +19,9 @@
 #define ANT_SPEED 100.0
 #define ANT_SPAWN_RADIUS 50.0
 
+// Radians per second
+#define ANT_TURN_SPEED TAU
+
 /**
  * @brief Represents the actions an ant can take.
  */
@@ -33,7 +36,7 @@ typedef enum {
  */
 typedef struct {
   ant_action_t action;
-  double angle;
+  double turn_strength;
 } ant_logic_t;
 
 /**
@@ -45,7 +48,7 @@ typedef struct {
   neural_network_t *net; /**< Pointer to the neural network for the ant's behavior */
   vector2d_t spawn;      /**< The spawn position of the ant */
   vector2d_t pos;        /**< The current position of the ant */
-  double rotation;       /**< The current rotation of the ant in radians */
+  double rotation;       /**< The current rotation of the ant in radians (-π to π) */
   bool has_food;         /**< Whether the ant is currently carrying food */
   bool is_coliding;      /**< Whether the ant is currently colliding with something */
 } ant_t;
@@ -111,12 +114,13 @@ circled_t ant_get_detector_circle(ant_t *ant);
 // Behavior functions
 
 /**
- * @brief Move the ant towards the specified angle.
+ * @brief Turn the ant.
  *
  * @param ant The ant entity to move.
- * @param angle The angle to move towards in radians.
+ * @param strength The strength of the turn, between -1 and 1.
+ * @param delta_time The time since the last update.
  */
-void ant_set_angle(ant_t *ant, double angle);
+void ant_turn(ant_t *ant, double strength, double delta_time);
 
 /**
  * @brief Move the ant in the faced direction.
