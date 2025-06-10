@@ -10,6 +10,7 @@
 #ifndef NEURAL_NETWORK_H
 #define NEURAL_NETWORK_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 

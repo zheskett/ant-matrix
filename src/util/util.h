@@ -17,18 +17,8 @@
 #define DEG2RAD_D 0.01745329251994329577
 #define RAD2DEG_D 57.2957795130823208768
 
-#define MAX(a, b)                                                                                                      \
-  ({                                                                                                                   \
-    typeof(a) _a = (a);                                                                                                \
-    typeof(b) _b = (b);                                                                                                \
-    _a > _b ? _a : _b;                                                                                                 \
-  })
-#define MIN(a, b)                                                                                                      \
-  ({                                                                                                                   \
-    typeof(a) _a = (a);                                                                                                \
-    typeof(b) _b = (b);                                                                                                \
-    _a <= _b ? _a : _b;                                                                                                \
-  })
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 /**
  * @brief A vector with 2 components and double precision.
