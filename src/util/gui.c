@@ -72,23 +72,9 @@ void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool d
     return;
   }
 
-  int index = 0;
   float max_height = 0.0f;
   for (int i = 0; i < network->num_hidden_layers + 2; i++) {
     max_height = fmaxf(max_height, network->neuron_counts[i] * NETWORK_NEURON_SPACING);
-  }
-
-  for (int i = 0; i < network->num_hidden_layers + 2; i++) {
-    const int layer_height = network->neuron_counts[i] * NETWORK_NEURON_SPACING;
-    float y_offset = (max_height - layer_height) / 2.0f;
-    for (int j = 0; j < network->neuron_counts[i]; j++) {
-      Rectangle neuron = {position.x + i * NETWORK_LAYER_SPACING, position.y + j * NETWORK_NEURON_SPACING + y_offset,
-                          NETWORK_NEURON_SIZE, NETWORK_NEURON_SIZE};
-      Color neuron_color =
-          draw_output ? get_neuron_color(network->output[index], true) : get_neuron_color(network->bias[index], false);
-      DrawRectangleRec(neuron, neuron_color);
-      index++;
-    }
   }
 
   for (int i = 1; i < network->num_hidden_layers + 2; i++) {
@@ -100,16 +86,30 @@ void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool d
     const int layer_height_out = network->neuron_counts[i] * NETWORK_NEURON_SPACING;
     float y_offset_out = (max_height - layer_height_out) / 2.0f;
     double (*weights)[in_size] = neural_layer_t_weights(network, i);
-    for (int k = 0; k < network->neuron_counts[i - 1]; k++) {
-      for (int j = 0; j < network->neuron_counts[i]; j++) {
-        Vector2 prev_neuron_pos = {position.x + (i - 1) * NETWORK_LAYER_SPACING + NETWORK_NEURON_SIZE / 2.0f,
-                                   position.y + k * NETWORK_NEURON_SPACING + y_offset_in + NETWORK_NEURON_SIZE / 2.0f};
-        Vector2 neuron_pos = {position.x + i * NETWORK_LAYER_SPACING + NETWORK_NEURON_SIZE / 2.0f,
-                              position.y + j * NETWORK_NEURON_SPACING + y_offset_out + NETWORK_NEURON_SIZE / 2.0f};
+    for (int k = 0; k < network->neuron_counts[i]; k++) {
+      for (int j = 0; j < network->neuron_counts[i - 1]; j++) {
+        Vector2 prev_neuron_pos = {position.x + (i - 1) * NETWORK_LAYER_SPACING + NETWORK_NEURON_SIZE,
+                                   position.y + j * NETWORK_NEURON_SPACING + y_offset_in + NETWORK_NEURON_SIZE / 2.0f};
+        Vector2 neuron_pos = {position.x + i * NETWORK_LAYER_SPACING,
+                              position.y + k * NETWORK_NEURON_SPACING + y_offset_out + NETWORK_NEURON_SIZE / 2.0f};
 
         const double weight = weights[k][j];
         DrawLineEx(prev_neuron_pos, neuron_pos, NETWORK_CONNECTION_WIDTH, get_weight_color(weight));
       }
+    }
+  }
+
+  int index = 0;
+  for (int i = 0; i < network->num_hidden_layers + 2; i++) {
+    const int layer_height = network->neuron_counts[i] * NETWORK_NEURON_SPACING;
+    float y_offset = (max_height - layer_height) / 2.0f;
+    for (int j = 0; j < network->neuron_counts[i]; j++) {
+      Rectangle neuron = {position.x + i * NETWORK_LAYER_SPACING, position.y + j * NETWORK_NEURON_SPACING + y_offset,
+                          NETWORK_NEURON_SIZE, NETWORK_NEURON_SIZE};
+      Color neuron_color = draw_output ? get_neuron_color(network->output[index], true)
+                                       : (i != 0 ? get_neuron_color(network->bias[index], false) : DARKBLUE);
+      DrawRectangleRec(neuron, neuron_color);
+      index++;
     }
   }
 }

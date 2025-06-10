@@ -15,7 +15,7 @@
 // Multiple networks per ant?
 #define PER_ANT_NETWORK 1
 
-#define LEARN_RATE 0.16l
+#define LEARN_RATE 0.15l
 #define LEARN_RATE_DECAY 0.99999999l
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 10
@@ -23,7 +23,7 @@
 // 3 actions, 1 turn strength
 #define ANN_OUTPUTS 4
 
-#define ANN_NEURON_COUNTS {ANN_INPUTS, 8, 8, ANN_OUTPUTS}
+#define ANN_NEURON_COUNTS {ANN_INPUTS, 16, ANN_OUTPUTS}
 
 #define ANN_BATCH_SIZE 1000
 
