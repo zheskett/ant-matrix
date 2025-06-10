@@ -17,10 +17,19 @@
 #define ANT_DETECTOR_RADIUS 50.0
 #define ANT_DETECTOR_OFFSET 70.0
 #define ANT_SPEED 100.0
-#define ANT_SPAWN_RADIUS 50.0
+#define ANT_SPAWN_RADIUS 60.0
 
 // Radians per second
-#define ANT_TURN_SPEED TAU
+#define ANT_TURN_SPEED (TAU * 2.0)
+
+/**
+ * @brief Represents the possible turn actions an ant can take.
+ */
+typedef enum {
+  ANT_TURN_LEFT = -1,
+  ANT_TURN_NONE = 0,
+  ANT_TURN_RIGHT = 1,
+} ant_turn_action_t;
 
 /**
  * @brief Represents the actions an ant can take.
@@ -35,8 +44,8 @@ typedef enum {
  * @brief Represents the output logic for an ant on a given tick.
  */
 typedef struct {
+  ant_turn_action_t turn_action;
   ant_action_t action;
-  double turn_strength;
 } ant_logic_t;
 
 /**
@@ -117,10 +126,10 @@ circled_t ant_get_detector_circle(ant_t *ant);
  * @brief Turn the ant.
  *
  * @param ant The ant entity to move.
- * @param strength The strength of the turn, between -1 and 1.
+ * @param turn_action The action to take for turning.
  * @param delta_time The time since the last update.
  */
-void ant_turn(ant_t *ant, double strength, double delta_time);
+void ant_turn(ant_t *ant, ant_turn_action_t turn_action, double delta_time);
 
 /**
  * @brief Move the ant in the faced direction.

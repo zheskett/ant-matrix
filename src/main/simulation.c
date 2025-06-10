@@ -38,10 +38,12 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
  * 9: has food
  *
  * OUTPUT:
- * 0: turn strength
- * 2: step
- * 3: gather
- * 4: drop
+ * 0: turn left
+ * 1: no turn
+ * 2: turn right
+ * 3: step
+ * 4: gather
+ * 5: drop
  */
 neural_network_t *ant_network = NULL;
 long double learning_rate = LEARN_RATE;
@@ -438,11 +440,13 @@ static void train_ants(double fixed_delta) {
       ant_logic_t logic = ant_train_update(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = logic.turn_strength;
+      outputs[0] = logic.turn_action == ANT_TURN_LEFT ? 1.0 : -0.9;
+      outputs[1] = logic.turn_action == ANT_TURN_NONE ? 0.9 : -1.0;
+      outputs[2] = logic.turn_action == ANT_TURN_RIGHT ? 1.0 : -0.9;
       // 0.9 to prevent picking step action when other actions should be taken
-      outputs[1] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
-      outputs[2] = logic.action == ANT_GATHER_ACTION ? 1.0 : -0.9;
-      outputs[3] = logic.action == ANT_DROP_ACTION ? 1.0 : -0.9;
+      outputs[3] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
+      outputs[4] = logic.action == ANT_GATHER_ACTION ? 1.0 : -0.9;
+      outputs[5] = logic.action == ANT_DROP_ACTION ? 1.0 : -0.9;
 
       int iterations = 1;
 
@@ -459,16 +463,25 @@ static void train_ants(double fixed_delta) {
     } else {
       const double *pred = neural_run(ant->net, inputs);
       ant_logic_t logic = {0};
-      logic.turn_strength = pred[0];
-      int choice = 1;
-      logic.action = ANT_STEP_ACTION;
-      if (pred[2] > pred[choice]) {
-        logic.action = ANT_GATHER_ACTION;
-        choice = 2;
+
+      int choice = 0;
+      logic.turn_action = ANT_TURN_LEFT;
+      if (pred[1] > pred[choice]) {
+        logic.turn_action = ANT_TURN_NONE;
+        choice = 1;
       }
-      if (pred[3] > pred[choice]) {
+      if (pred[2] > pred[choice]) {
+        logic.turn_action = ANT_TURN_RIGHT;
+      }
+
+      choice = 3;
+      logic.action = ANT_STEP_ACTION;
+      if (pred[4] > pred[choice]) {
+        logic.action = ANT_GATHER_ACTION;
+        choice = 4;
+      }
+      if (pred[5] > pred[choice]) {
         logic.action = ANT_DROP_ACTION;
-        choice = 3;
       }
 
       ant_run_update(ant, logic, fixed_delta);
@@ -510,7 +523,7 @@ static void reset_simulation() {
     for (int i = 0; i < starting_food; i++) {
       vector2d_t food_pos = spawn;
       while (v2d_distance(spawn, food_pos) < min_food_distance) {
-        food_pos.x = (rand() % WORLD_H) + spawn.x / 2;
+        food_pos.x = (rand() % WORLD_W);
         food_pos.y = rand() % WORLD_H;
       }
       food_t *food =

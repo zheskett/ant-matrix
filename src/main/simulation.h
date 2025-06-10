@@ -20,8 +20,8 @@
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 10
 
-// 3 actions, 1 turn strength
-#define ANN_OUTPUTS 4
+// 3 turn actions, 3 actions
+#define ANN_OUTPUTS 6
 
 #define ANN_NEURON_COUNTS {ANN_INPUTS, 16, ANN_OUTPUTS}
 

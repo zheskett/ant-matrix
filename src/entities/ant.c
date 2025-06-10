@@ -55,7 +55,8 @@ void ant_run_update(ant_t *ant, ant_logic_t logic, double delta_time) {
     return;
   }
 
-  ant_turn(ant, logic.turn_strength, delta_time);
+  ant_turn(ant, logic.turn_action, delta_time);
+
   switch (logic.action) {
   case ANT_STEP_ACTION:
     ant_step(ant, delta_time);
@@ -71,7 +72,7 @@ void ant_run_update(ant_t *ant, ant_logic_t logic, double delta_time) {
 
 ant_logic_t ant_train_update(ant_t *ant, double delta_time) {
   if (!ant) {
-    return (ant_logic_t){ANT_STEP_ACTION, 0.0};
+    return (ant_logic_t){ANT_TURN_NONE, ANT_STEP_ACTION};
   }
 
   ant_logic_t logic = ant_decision(ant, delta_time);
@@ -120,12 +121,12 @@ circled_t ant_get_detector_circle(ant_t *ant) {
   return circle;
 }
 
-void ant_turn(ant_t *ant, double strength, double delta_time) {
+void ant_turn(ant_t *ant, ant_turn_action_t turn_action, double delta_time) {
   if (!ant) {
     return;
   }
 
-  ant->rotation = constrain_angle(ant->rotation + strength * ANT_TURN_SPEED * delta_time);
+  ant->rotation = constrain_angle(ant->rotation + ((double)turn_action) * ANT_TURN_SPEED * delta_time);
 }
 
 bool ant_step(ant_t *ant, double delta_time) {
@@ -199,7 +200,7 @@ bool ant_drop(ant_t *ant) {
 // Update the ant's logic and behavior.
 static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
   if (!ant) {
-    return (ant_logic_t){ANT_STEP_ACTION, 0.0};
+    return (ant_logic_t){ANT_TURN_NONE, ANT_STEP_ACTION};
   }
 
   const double max_turn = ANT_TURN_SPEED * delta_time;
@@ -235,9 +236,15 @@ static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
     if (ant->is_coliding) {
       turn_strength = 1.0;
     } else {
-      turn_strength = 0.02;
+      turn_strength = 0.0;
     }
   }
 
-  return (ant_logic_t){action, turn_strength};
+  ant_turn_action_t turn_action = ANT_TURN_NONE;
+  if (turn_strength >= 0.75) {
+    turn_action = ANT_TURN_RIGHT;
+  } else if (turn_strength <= -0.75) {
+    turn_action = ANT_TURN_LEFT;
+  }
+  return (ant_logic_t){turn_action, action};
 }
