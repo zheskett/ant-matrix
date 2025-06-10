@@ -10,6 +10,7 @@
 #ifndef GUI_H
 #define GUI_H
 
+#include "neural/nn.h"
 #include "raylib.h"
 
 #define TEXT_SIZE 20
@@ -24,6 +25,10 @@
 #define CHECKBOX_PRESS_COLOR BUTTON_PRESS_COLOR
 #define CHECKBOX_BACKGROUND_COLOR BUTTON_COLOR
 #define CHECKBOX_CHECKED_COLOR (Color){0, 150, 0, 255}
+#define NETWORK_LAYER_SPACING 100.0f
+#define NETWORK_NEURON_SPACING 20.0f
+#define NETWORK_NEURON_SIZE 10.0f
+#define NETWORK_CONNECTION_WIDTH 1.0f
 
 /**
  * @brief Draws a button with the specified text and returns whether it was clicked.
@@ -53,5 +58,14 @@ bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char *text, bo
  * @param text The text to display in the label.
  */
 void gui_draw_label(Vector2 position, const char *text);
+
+/**
+ * @brief Draws a neural network visualization at the specified position.
+ *
+ * @param position The position to draw the neural network visualization.
+ * @param network The neural network to visualize.
+ * @param draw_output Whether to draw the output values of the neurons or the biases.
+ */
+void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool draw_output);
 
 #endif /* GUI_H */

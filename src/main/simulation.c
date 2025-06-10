@@ -195,26 +195,6 @@ static void update() {
   static double simulation_time = 0.0;
   static double last_update_time = 0.0;
 
-  if (warp) {
-    if (tick_speed <= 1.1) {
-      tick_speed = WARP_SPEED;
-    } else {
-      // How much faster or slower than 30 FPS the simulation is running
-      frame_time_avg = 0.3 * frame_time_avg + 0.7 * GetFrameTime();
-      const double ratio = 1 / (30.0 * frame_time_avg);
-
-      if (ratio < 1.15) {
-        tick_speed *= 0.98;
-      } else if (ratio < 1.4) {
-        tick_speed -= 2.0;
-      } else if (ratio > 1.45) {
-        tick_speed += 1.5;
-      }
-    }
-  } else {
-    tick_speed = 1.0;
-  }
-
   if (reset) {
     reset = false;
     first = false;
@@ -229,11 +209,33 @@ static void update() {
     last_update_time = last_time;
     first = true;
   }
-  double current_time = GetTime();
-  double delta_time = fmin(current_time - last_time, MAX_DELTA);
+  const double current_time = GetTime();
+  const double delta_time = fmin(current_time - last_time, MAX_DELTA);
 
   last_time = current_time;
   simulation_time += delta_time;
+
+  if (warp) {
+    if (tick_speed <= 1.1) {
+      tick_speed = WARP_SPEED;
+    } else {
+      // How much faster or slower than 30 FPS the simulation is running
+      const double alpha = 0.1;
+      frame_time_avg = alpha * frame_time_avg + (1 - alpha) * delta_time;
+      const double ratio = fmax(0.99, 1 / (30.0 * frame_time_avg));
+      if (ratio > 2.5) {
+        tick_speed *= 1.0075;
+      } else if (ratio > 1.2) {
+        tick_speed += 0.1;
+      } else if (ratio > 1.0) {
+        tick_speed -= 4;
+      } else if (ratio < 1.0) {
+        tick_speed *= ratio;
+      }
+    }
+  } else {
+    tick_speed = 1.0;
+  }
 
   while (simulation_time >= scaled_delta) {
     simulation_time -= scaled_delta;
@@ -311,6 +313,11 @@ static void render() {
   warp = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 90}, "Warp", warp);
 
   gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.0f", tick_speed));
+
+  if (g_ant_list.length > 0) {
+    ant_t *ant = dyn_arr_get(g_ant_list, 0);
+    gui_draw_neural_network((Vector2){10, 70}, ant->net, !training);
+  }
 
   EndTextureMode();
 }
@@ -407,7 +414,7 @@ static void train_ants(double fixed_delta) {
     const double spawn_vector_length = v2d_length(spawn_vector);
     inputs[0] = cos(ant->rotation);
     inputs[1] = sin(ant->rotation);
-    inputs[2] = circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos) ? 1.0 : 0.0;
+    inputs[2] = circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos) ? 1.0 : -1.0;
     inputs[3] = spawn_vector_length > 1e-9 ? spawn_vector.x / spawn_vector_length : -cos(ant->rotation);
     inputs[4] = spawn_vector_length > 1e-9 ? spawn_vector.y / spawn_vector_length : -sin(ant->rotation);
 
@@ -415,17 +422,17 @@ static void train_ants(double fixed_delta) {
       const vector2d_t food_vector = v2d_subtract(ant->nearest_food->pos, ant->pos);
       const double food_vector_length = v2d_length(food_vector);
       inputs[5] =
-          circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos) ? 1.0 : 0.0;
+          circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos) ? 1.0 : -1.0;
       inputs[6] = food_vector_length > 1e-9 ? food_vector.x / food_vector_length : -cos(ant->rotation);
       inputs[7] = food_vector_length > 1e-9 ? food_vector.y / food_vector_length : -sin(ant->rotation);
     } else {
-      inputs[5] = 0.0;
+      inputs[5] = -1.0;
       inputs[6] = 0.0;
       inputs[7] = 0.0;
     }
 
-    inputs[8] = ant->nearest_food ? 1.0 : 0.0;
-    inputs[9] = ant->has_food ? 1.0 : 0.0;
+    inputs[8] = ant->nearest_food ? 1.0 : -1.0;
+    inputs[9] = ant->has_food ? 1.0 : -1.0;
 
     if (training) {
       ant_logic_t logic = ant_train_update(ant, fixed_delta);

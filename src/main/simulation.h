@@ -23,7 +23,7 @@
 // 3 actions, 1 turn strength
 #define ANN_OUTPUTS 4
 
-#define ANN_NEURON_COUNTS {ANN_INPUTS, 16, 8, ANN_OUTPUTS}
+#define ANN_NEURON_COUNTS {ANN_INPUTS, 8, 8, ANN_OUTPUTS}
 
 #define ANN_BATCH_SIZE 1000
 
@@ -38,7 +38,7 @@
 #define CAM_SPEED 1000
 
 #define MAX_DELTA 5.0
-#define WARP_SPEED 50.0
+#define WARP_SPEED 100.0
 #define RESET_TIME 60.0
 
 extern dyn_arr_ant_t g_ant_list;
