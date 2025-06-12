@@ -82,28 +82,27 @@ RenderTexture2D offscreen;
 Texture2D ant_texture;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 
+int to_resize = -1;
+
 #pragma endregion
 
 int start(int argc, char **argv) {
   initialize();
 
   while (!WindowShouldClose()) {
-    // if (IsWindowResized()) {
-    //   resize_window(GetScreenWidth(), GetScreenHeight());
-    // }
+    if (IsWindowResized() || to_resize == 0) {
+      resize_window(GetScreenWidth(), GetScreenHeight());
+    }
 
-    // input();
-    // update();
-    // render();
-    // render_present();
-    BeginDrawing();
-    ClearBackground(RAYWHITE);
-    DrawCircle(300 / 2, 200 / 2, 100, RED);
-    EndDrawing();
+    input();
+    update();
+    render();
+    render_present();
+    to_resize = MAX(to_resize - 1, -1);
   }
 
-  // UnloadRenderTexture(offscreen);
-  // UnloadTexture(ant_texture);
+  UnloadRenderTexture(offscreen);
+  UnloadTexture(ant_texture);
 
   if (ant_data) {
     for (int i = 0; i < g_ant_list.length; i++) {
@@ -225,10 +224,10 @@ static void update() {
     if (tick_speed <= 1.1) {
       tick_speed = WARP_SPEED;
     } else {
-      // How much faster or slower than 30 FPS the simulation is running
+      // How much faster or slower than 15 FPS the simulation is running
       const double alpha = 0.1;
       frame_time_avg = alpha * frame_time_avg + (1 - alpha) * delta_time;
-      const double ratio = fmax(0.99, 1 / (30.0 * frame_time_avg));
+      const double ratio = fmax(0.99, 1 / (15.0 * frame_time_avg));
       if (ratio > 2.5) {
         tick_speed *= 1.0075;
       } else if (ratio > 1.2) {
@@ -339,45 +338,50 @@ static void initialize() {
   dyn_arr_init(output_list);
 
   // Initialize raylib
-  // SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
-  InitWindow(800, 450, "Ant Matrix");
-  SetTargetFPS(60);
+  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
+  SetTraceLogLevel(LOG_DEBUG);
+  InitWindow(1280, 720, "Ant Matrix");
+  SetTargetFPS(TARGET_FPS);
 
-  // ant_texture = LoadTexture("assets/ant.png");
+  ant_texture = LoadTexture("assets/ant.png");
 
-  // ant_data = malloc(starting_ants * sizeof(ant_t));
-  // ant_t *ant_data_ptr = ant_data;
-  // if (!ant_data) {
-  //   fprintf(stderr, "Failed to allocate memory for ants\n");
-  //   exit(EXIT_FAILURE);
-  // }
-  // for (int i = 0; i < starting_ants; i++) {
-  //   ant_t *ant = ant_data_ptr++;
-  //   if (PER_ANT_NETWORK) {
-  //     ant->net = create_ant_net();
-  //   } else {
-  //     ant->net = ant_network;
-  //   }
+  ant_data = malloc(starting_ants * sizeof(ant_t));
+  ant_t *ant_data_ptr = ant_data;
+  if (!ant_data) {
+    fprintf(stderr, "Failed to allocate memory for ants\n");
+    exit(EXIT_FAILURE);
+  }
+  for (int i = 0; i < starting_ants; i++) {
+    ant_t *ant = ant_data_ptr++;
+    if (PER_ANT_NETWORK) {
+      ant->net = create_ant_net();
+    } else {
+      ant->net = ant_network;
+    }
 
-  //   ant->texture = &ant_texture;
-  //   ant->nearest_food = NULL;
-  //   ant->spawn = spawn;
-  //   ant->pos = spawn;
-  //   ant->rotation = (rand() % 360) * DEG2RAD_D;
-  //   ant->has_food = false;
-  //   ant->is_coliding = false;
-  //   dyn_arr_push(g_ant_list, ant);
-  // }
+    ant->texture = &ant_texture;
+    ant->nearest_food = NULL;
+    ant->spawn = spawn;
+    ant->pos = spawn;
+    ant->rotation = (rand() % 360) * DEG2RAD_D;
+    ant->has_food = false;
+    ant->is_coliding = false;
+    dyn_arr_push(g_ant_list, ant);
+  }
 
-  // reset_simulation();
+  reset_simulation();
 
-  // offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
-  // SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
-  // const int height = nearest_16_by_9_height(GetScreenWidth());
-  // resize_window(height * 16 / 9, height);
-  // // Position the window in the center of the screen
-  // SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
-  //                   (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
+  offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
+  SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
+#ifdef __EMSCRIPTEN__
+  resize_window(GetScreenWidth(), GetScreenHeight());
+#else
+  const int height = nearest_16_by_9_height(GetMonitorWidth(GetCurrentMonitor()));
+  resize_window(height * 16 / 9, height);
+  // Position the window in the center of the screen
+  SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
+                    (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
+#endif
 }
 
 static void resize_window(int w, int h) {
@@ -400,7 +404,10 @@ static void render_present() {
   /* render offscreen to display */
 
   BeginDrawing();
-  ClearBackground(BLACK);
+  ClearBackground(BROWN);
+  DrawRectangle(0, 0, letterbox.x, GetScreenHeight(), WHITE);
+  DrawRectangle(letterbox.x + letterbox.width, 0, GetScreenWidth() - (letterbox.x + letterbox.width), GetScreenHeight(),
+                WHITE);
 
   const Rectangle render_src = {0, 0, (float)SCREEN_W, -(float)SCREEN_H};
   const Vector2 render_origin = {0, 0};

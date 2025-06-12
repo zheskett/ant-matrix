@@ -9,7 +9,7 @@ file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 list(FILTER SRC EXCLUDE REGEX ".*/src/main\\.c$")
 
 if(USE_WEB_RAYLIB)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
     set(RAYLIB_WEB_ROOT "$ENV{RAYLIB_WEB_ROOT}" CACHE PATH "Folder that contains libraylib.a built with PLATFORM=Web")
 
     if(NOT RAYLIB_WEB_ROOT)
@@ -36,23 +36,26 @@ target_link_libraries(AntMatrix PRIVATE AntMatrix_static)
 
 # Extras only for WASM
 if(USE_WEB_RAYLIB)
-    set_target_properties(AntMatrix PROPERTIES
-        SUFFIX ".html" # AntMatrix.html
-    )
+    set(CMAKE_EXECUTABLE_SUFFIX ".html") # CMake will generate AntMatrix.html
+    set(WASM_SHELL "${CMAKE_SOURCE_DIR}/web/wasm-shell.html")
+    configure_file(${CMAKE_SOURCE_DIR}/web/favicon.png ${CMAKE_CURRENT_BINARY_DIR}/favicon.png COPYONLY)
+
     # Preload the assets folder so FS.open("assets/…") works:
     target_link_options(AntMatrix PRIVATE
         "-sUSE_GLFW=3"
         "-sASYNCIFY"
-        "-sFULL_ES2=1"
-        "-sTOTAL_MEMORY=67108864"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sUSE_WEBGL2=1"
+        "-sOFFSCREENCANVAS_SUPPORT=1"
+        "--shell-file=${WASM_SHELL}"
         "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets")
 endif()
 
-# file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
-# add_custom_target(Assets ALL COMMENT "Copying assets folder")
-# add_dependencies(Assets ${PROJECT_NAME})
+file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+add_custom_target(Assets ALL COMMENT "Copying assets folder")
+add_dependencies(Assets ${PROJECT_NAME})
 
-# include(CTest)
-# if (BUILD_TESTING)
-#     add_subdirectory(test)
-# endif()
+include(CTest)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()

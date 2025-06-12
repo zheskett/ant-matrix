@@ -38,7 +38,7 @@
 #define CAM_SPEED 1000
 
 #define MAX_DELTA 0.125
-#define WARP_SPEED 100.0
+#define WARP_SPEED 10.0
 #define RESET_TIME 60.0
 
 extern dyn_arr_ant_t g_ant_list;
