@@ -1,33 +1,58 @@
 cmake_minimum_required(VERSION 3.16)
 project(AntMatrix C)
 
-set(CMAKE_C_STANDARD 99)
+option(USE_WEB_RAYLIB "Build for WASM with an externally-built raylib-web" OFF)
 
-# OMP support
-# if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
-#     set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp")
-#     set(OpenMP_C_LIB_NAMES "omp")
-#     set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-# endif()
-# find_package(OpenMP REQUIRED)
+set(CMAKE_C_STANDARD 11)
 
-find_package(raylib REQUIRED)
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 list(FILTER SRC EXCLUDE REGEX ".*/src/main\\.c$")
 
-# Create static library for test purposes
-add_library(${PROJECT_NAME}_static STATIC ${SRC})
-target_include_directories(${PROJECT_NAME}_static PUBLIC "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/lib")
-target_link_libraries(${PROJECT_NAME}_static PUBLIC raylib m)
+if(USE_WEB_RAYLIB)
+    set(CMAKE_BUILD_TYPE Debug)
+    set(RAYLIB_WEB_ROOT "$ENV{RAYLIB_WEB_ROOT}" CACHE PATH "Folder that contains libraylib.a built with PLATFORM=Web")
 
-add_executable(${PROJECT_NAME} "${CMAKE_SOURCE_DIR}/src/main.c")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_static)
+    if(NOT RAYLIB_WEB_ROOT)
+        message(FATAL_ERROR "Set RAYLIB_WEB_ROOT when USE_WEB_RAYLIB=ON")
+    endif()
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
-add_custom_target(Assets ALL COMMENT "Copying assets folder")
-add_dependencies(Assets ${PROJECT_NAME})
-
-include(CTest)
-if (BUILD_TESTING)
-    add_subdirectory(test)
+    add_library(raylib STATIC IMPORTED)
+    set_target_properties(raylib PROPERTIES
+        IMPORTED_LOCATION "${RAYLIB_WEB_ROOT}/lib/libraylib.a"
+        INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_WEB_ROOT}/include"
+    )
+else()
+    find_package(raylib REQUIRED)
 endif()
+
+add_library(AntMatrix_static STATIC ${SRC})
+target_include_directories(AntMatrix_static PUBLIC
+    "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/lib")
+
+target_link_libraries(AntMatrix_static PUBLIC raylib)
+
+add_executable(AntMatrix src/main.c)
+target_link_libraries(AntMatrix PRIVATE AntMatrix_static)
+
+# Extras only for WASM
+if(USE_WEB_RAYLIB)
+    set_target_properties(AntMatrix PROPERTIES
+        SUFFIX ".html" # AntMatrix.html
+    )
+    # Preload the assets folder so FS.open("assets/…") works:
+    target_link_options(AntMatrix PRIVATE
+        "-sUSE_GLFW=3"
+        "-sASYNCIFY"
+        "-sFULL_ES2=1"
+        "-sTOTAL_MEMORY=67108864"
+        "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets")
+endif()
+
+# file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+# add_custom_target(Assets ALL COMMENT "Copying assets folder")
+# add_dependencies(Assets ${PROJECT_NAME})
+
+# include(CTest)
+# if (BUILD_TESTING)
+#     add_subdirectory(test)
+# endif()

@@ -88,18 +88,22 @@ int start(int argc, char **argv) {
   initialize();
 
   while (!WindowShouldClose()) {
-    if (IsWindowResized()) {
-      resize_window(GetScreenWidth(), GetScreenHeight());
-    }
+    // if (IsWindowResized()) {
+    //   resize_window(GetScreenWidth(), GetScreenHeight());
+    // }
 
-    input();
-    update();
-    render();
-    render_present();
+    // input();
+    // update();
+    // render();
+    // render_present();
+    BeginDrawing();
+    ClearBackground(RAYWHITE);
+    DrawCircle(300 / 2, 200 / 2, 100, RED);
+    EndDrawing();
   }
 
-  UnloadRenderTexture(offscreen);
-  UnloadTexture(ant_texture);
+  // UnloadRenderTexture(offscreen);
+  // UnloadTexture(ant_texture);
 
   if (ant_data) {
     for (int i = 0; i < g_ant_list.length; i++) {
@@ -335,45 +339,45 @@ static void initialize() {
   dyn_arr_init(output_list);
 
   // Initialize raylib
-  SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
-  InitWindow(0, 0, "Ant Matrix");
-  SetTargetFPS(TARGET_FPS);
+  // SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_ALWAYS_RUN | FLAG_WINDOW_HIGHDPI);
+  InitWindow(800, 450, "Ant Matrix");
+  SetTargetFPS(60);
 
-  ant_texture = LoadTexture("assets/ant.png");
+  // ant_texture = LoadTexture("assets/ant.png");
 
-  ant_data = malloc(starting_ants * sizeof(ant_t));
-  ant_t *ant_data_ptr = ant_data;
-  if (!ant_data) {
-    fprintf(stderr, "Failed to allocate memory for ants\n");
-    exit(EXIT_FAILURE);
-  }
-  for (int i = 0; i < starting_ants; i++) {
-    ant_t *ant = ant_data_ptr++;
-    if (PER_ANT_NETWORK) {
-      ant->net = create_ant_net();
-    } else {
-      ant->net = ant_network;
-    }
+  // ant_data = malloc(starting_ants * sizeof(ant_t));
+  // ant_t *ant_data_ptr = ant_data;
+  // if (!ant_data) {
+  //   fprintf(stderr, "Failed to allocate memory for ants\n");
+  //   exit(EXIT_FAILURE);
+  // }
+  // for (int i = 0; i < starting_ants; i++) {
+  //   ant_t *ant = ant_data_ptr++;
+  //   if (PER_ANT_NETWORK) {
+  //     ant->net = create_ant_net();
+  //   } else {
+  //     ant->net = ant_network;
+  //   }
 
-    ant->texture = &ant_texture;
-    ant->nearest_food = NULL;
-    ant->spawn = spawn;
-    ant->pos = spawn;
-    ant->rotation = (rand() % 360) * DEG2RAD_D;
-    ant->has_food = false;
-    ant->is_coliding = false;
-    dyn_arr_push(g_ant_list, ant);
-  }
+  //   ant->texture = &ant_texture;
+  //   ant->nearest_food = NULL;
+  //   ant->spawn = spawn;
+  //   ant->pos = spawn;
+  //   ant->rotation = (rand() % 360) * DEG2RAD_D;
+  //   ant->has_food = false;
+  //   ant->is_coliding = false;
+  //   dyn_arr_push(g_ant_list, ant);
+  // }
 
-  reset_simulation();
+  // reset_simulation();
 
-  offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
-  SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
-  const int height = nearest_16_by_9_height(GetScreenWidth());
-  resize_window(height * 16 / 9, height);
-  // Position the window in the center of the screen
-  SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
-                    (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
+  // offscreen = LoadRenderTexture(SCREEN_W, SCREEN_H);
+  // SetTextureFilter(offscreen.texture, TEXTURE_FILTER_BILINEAR);
+  // const int height = nearest_16_by_9_height(GetScreenWidth());
+  // resize_window(height * 16 / 9, height);
+  // // Position the window in the center of the screen
+  // SetWindowPosition((GetMonitorWidth(GetCurrentMonitor()) - window_w) / 2,
+  //                   (GetMonitorHeight(GetCurrentMonitor()) - window_h) / 2);
 }
 
 static void resize_window(int w, int h) {

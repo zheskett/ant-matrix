@@ -13,6 +13,8 @@ static int neural_layer_offset(neural_network_t *network, int layer);
 static char *allocate_data(neural_network_t *network, int m);
 
 static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
+double enc(double x) { return 0.5 * (x + 1.0); }
+double dec(double x) { return 2.0 * x - 1.0; }
 
 neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_array[]) {
   num_hidden_layers = MAX(0, num_hidden_layers);

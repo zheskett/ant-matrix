@@ -31,9 +31,8 @@ typedef struct {
   int total_weights;     /**< Total number of weights in the network */
 } neural_network_t;
 
-inline double enc(double x) { return 0.5 * (x + 1.0); }
-
-inline double dec(double x) { return 2.0 * x - 1.0; }
+double enc(double x);
+double dec(double x);
 
 /**
  * @brief Create a neural network with the specified architecture.
