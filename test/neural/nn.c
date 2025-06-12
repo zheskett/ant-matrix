@@ -15,10 +15,10 @@ int test_xor() {
   neural_randomize_weights(network, -std, std);
   neural_randomize_bias(network, 0, 0);
 
-  const double inputs[4][2] = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
-  const double expected_outputs[4][1] = {{-1}, {1}, {1}, {-1}};
+  const double inputs[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+  const double expected_outputs[4][1] = {{0}, {1}, {1}, {0}};
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 1000000; i++) {
     // Randomly select 2 inputs and their expected output
     int rand_index = rand() % 4;
     int prev_index = rand_index;
@@ -30,7 +30,7 @@ int test_xor() {
                                   inputs[prev_index][1]};
     const double outputs_ptr[2] = {expected_outputs[rand_index][0], expected_outputs[prev_index][0]};
 
-    double error = neural_train(network, 2, inputs_ptr, outputs_ptr, 0.05);
+    double error = neural_train(network, 2, inputs_ptr, outputs_ptr, 0.01);
     // printf("%f\n", error);
   }
 
@@ -41,7 +41,7 @@ int test_xor() {
     const double *output = neural_run(network, inputs[i]);
     printf("Input: [%f, %f] -> Output: [%f]\n", inputs[i][0], inputs[i][1], output[0]);
     fflush(stdout);
-    assert(fabs(output[0] - expected_outputs[i][0]) < 0.2);
+    assert(fabs(output[i] - expected_outputs[i][0]) < 0.0);
   }
 
   neural_free(network);

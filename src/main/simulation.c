@@ -416,44 +416,46 @@ static void train_ants(double fixed_delta) {
     const double spawn_vector_length = v2d_length(spawn_vector);
     inputs[0] = cos(ant->rotation);
     inputs[1] = sin(ant->rotation);
-    inputs[2] = circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos) ? 1.0 : -1.0;
-    inputs[3] = spawn_vector_length > 1e-9 ? spawn_vector.x / spawn_vector_length : -cos(ant->rotation);
-    inputs[4] = spawn_vector_length > 1e-9 ? spawn_vector.y / spawn_vector_length : -sin(ant->rotation);
+    inputs[2] = circle_collide_point((circled_t){ant->spawn, ANT_SPAWN_RADIUS}, ant->pos) ? 1.0 : 0.0;
+    inputs[3] = spawn_vector_length > 1e-9 ? enc(spawn_vector.x / spawn_vector_length) : enc(-cos(ant->rotation));
+    inputs[4] = spawn_vector_length > 1e-9 ? enc(spawn_vector.y / spawn_vector_length) : enc(-sin(ant->rotation));
 
     if (ant->nearest_food) {
       const vector2d_t food_vector = v2d_subtract(ant->nearest_food->pos, ant->pos);
       const double food_vector_length = v2d_length(food_vector);
       inputs[5] =
-          circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos) ? 1.0 : -1.0;
-      inputs[6] = food_vector_length > 1e-9 ? food_vector.x / food_vector_length : -cos(ant->rotation);
-      inputs[7] = food_vector_length > 1e-9 ? food_vector.y / food_vector_length : -sin(ant->rotation);
+          circle_collide_point((circled_t){ant->nearest_food->pos, ant->nearest_food->radius}, ant->pos) ? 1.0 : 0.0;
+      inputs[6] = food_vector_length > 1e-9 ? enc(food_vector.x / food_vector_length) : enc(-cos(ant->rotation));
+      inputs[7] = food_vector_length > 1e-9 ? enc(food_vector.y / food_vector_length) : enc(-sin(ant->rotation));
     } else {
-      inputs[5] = -1.0;
+      inputs[5] = 0.0;
       inputs[6] = 0.0;
       inputs[7] = 0.0;
     }
 
-    inputs[8] = ant->nearest_food ? 1.0 : -1.0;
-    inputs[9] = ant->has_food ? 1.0 : -1.0;
+    inputs[8] = ant->nearest_food ? 1.0 : 0.0;
+    inputs[9] = ant->has_food ? 1.0 : 0.0;
 
     if (training) {
       ant_logic_t logic = ant_train_update(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = logic.turn_action == ANT_TURN_LEFT ? 1.0 : -0.9;
-      outputs[1] = logic.turn_action == ANT_TURN_NONE ? 0.9 : -1.0;
-      outputs[2] = logic.turn_action == ANT_TURN_RIGHT ? 1.0 : -0.9;
-      // 0.9 to prevent picking step action when other actions should be taken
-      outputs[3] = logic.action == ANT_STEP_ACTION ? 0.9 : -1.0;
-      outputs[4] = logic.action == ANT_GATHER_ACTION ? 1.0 : -0.9;
-      outputs[5] = logic.action == ANT_DROP_ACTION ? 1.0 : -0.9;
+      outputs[0] = logic.turn_action == ANT_TURN_LEFT ? 1.0 : 0.0;
+      outputs[1] = logic.turn_action == ANT_TURN_NONE ? 1.0 : 0.0;
+      outputs[2] = logic.turn_action == ANT_TURN_RIGHT ? 1.0 : 0.0;
+
+      outputs[3] = logic.action == ANT_STEP_ACTION ? 1.0 : 0.0;
+      outputs[4] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.0;
+      outputs[5] = logic.action == ANT_DROP_ACTION ? 1.0 : 0.0;
 
       int iterations = 1;
 
       if (logic.action == ANT_DROP_ACTION) {
-        iterations = 80;
+        iterations = 30;
       } else if (logic.action == ANT_GATHER_ACTION) {
-        iterations = 15;
+        iterations = 10;
+      } else if (inputs[5] >= 1.0) {
+        iterations = 5;
       }
 
       // Train the neural network

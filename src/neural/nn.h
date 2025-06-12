@@ -31,6 +31,10 @@ typedef struct {
   int total_weights;     /**< Total number of weights in the network */
 } neural_network_t;
 
+inline double enc(double x) { return 0.5 * (x + 1.0); }
+
+inline double dec(double x) { return 2.0 * x - 1.0; }
+
 /**
  * @brief Create a neural network with the specified architecture.
  *
@@ -86,7 +90,8 @@ void neural_randomize_bias(neural_network_t *network, double min_bias, double ma
  * @param layer The index of the in-layer to get weights for.
  * @return A pointer to the weights of the specified layer.
  *
- * Usage: double (*layer_weights)[network->neuron_counts[out_layer - 1]] = neural_layer_weights(network, out_layer);
+ * @note Usage: double (*layer_weights)[network->neuron_counts[out_layer - 1]] = neural_layer_weights(network,
+ * out_layer);
  */
 double (*neural_layer_t_weights(neural_network_t *network, int out_layer))[];
 

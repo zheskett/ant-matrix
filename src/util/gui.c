@@ -115,7 +115,7 @@ void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool d
 }
 
 static Color get_neuron_color(double value, bool is_output) {
-  value = is_output ? fmax(-1.0, fmin(1.0, value)) : tanh(value);
+  value = is_output ? dec(fmax(0, fmin(1.0, value))) : tanh(value);
 
   // Map the value to a color with gradient from red to yellow to green
   if (value < 0.0) {

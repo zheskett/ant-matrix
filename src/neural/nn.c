@@ -145,6 +145,8 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     }
   }
 
+  memset(delta[0], 0, network->total_neurons * m * sizeof(double));
+
   // Feed forward through the network
   for (int i = 0; i < L; i++) {
     forward_propagate_layer(network, i, m, A[i], A[i + 1]);
@@ -155,7 +157,8 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   // Backpropagation and weight updates
   /*
   (delta^L) = dC/dZ^L = dC/d(Y_hat) * d(Y_hat)/dZ^L = (1/m)(Y_hat - Y) * d(Y_hat)/dZ^L
-  dC/d(Y_hat) = (1/m) * (Y_hat - Y)
+  dC/d(Y_hat) = (1/m) * (Y_hat - Y) (mean squared error)
+  dC/d(Z^L) (delta^L) = (1/m) * (Y_hat - Y) (binary cross-entropy)
   d(Y_hat)/dZ^L = Y_hat * (1 - Y_hat) (sigmoid derivative)
   d(Y_hat)/dZ^L = 1 - Y_hat^2 (tanh derivative)
 
@@ -175,9 +178,9 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     double *delta_Li = delta[L] + i * m;
     const double *A_Li = A[L] + i * m;
     const double *Y_i = Y + i * m;
-    for (int j = 0; j < m; j++) {
-      const double value = m_inv * (A_Li[j] - Y_i[j]) * (1 - A_Li[j] * A_Li[j]);
-      delta_Li[j] = value;
+    for (int k = 0; k < m; k++) {
+      const double value = m_inv * (A_Li[k] - Y_i[k]);
+      delta_Li[k] = value;
       sum += value;
     }
     // Gradient descent bias
@@ -213,10 +216,6 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     // #pragma omp parallel for
     for (int j = 0; j < in_size; j++) {
       double *delta_lj = delta[l] + j * m;
-      for (int k = 0; k < m; k++) {
-        delta_lj[k] = 0.0;
-      }
-
       double sum = 0.0;
       const double *A_lj = A[l] + j * m;
       for (int i = 0; i < out_size; i++) {
@@ -228,7 +227,7 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
 
       // delta^l = dC/dA^[l] * dA^[l]/dZ^[l]
       for (int k = 0; k < m; k++) {
-        delta_lj[k] *= (1 - A_lj[k] * A_lj[k]);
+        delta_lj[k] *= (A_lj[k] * (1 - A_lj[k]));
         sum += delta_lj[k];
       }
 
@@ -536,13 +535,25 @@ static double calculate_cost(neural_network_t *network, int m, const double *y, 
   }
 
   double sum = 0.0;
-  const double mx2_inv = 1.0 / (2.0 * (double)m);
+  const double m_inv = 1.0 / (double)m;
+  const double mx2_inv = 0.5 * m_inv;
   const int total = network->neuron_counts[network->num_hidden_layers + 1] * m;
+
+  // Mean Squared Error (MSE) cost function
+  // for (int i = 0; i < total; ++i) {
+  //   const double diff = y[i] - y_hat[i];
+  //   sum += diff * diff;
+  // }
+  // return mx2_inv * sum;
+
+  // Binary Cross-Entropy (BCE) cost function
   for (int i = 0; i < total; ++i) {
-    const double diff = y[i] - y_hat[i];
-    sum += diff * diff * mx2_inv;
+    const double y_i = y[i];
+    const double y_hat_i_clamped = fmax(fmin(y_hat[i], 1.0 - 1e-12), 1e-12);
+
+    sum += y_i * log(y_hat_i_clamped) + (1 - y_i) * log(1.0 - y_hat_i_clamped);
   }
-  return sum;
+  return -m_inv * sum;
 }
 
 static void forward_propagate_layer(neural_network_t *network, int in_layer, int m, const double *A_in, double *A_out) {
@@ -553,7 +564,7 @@ static void forward_propagate_layer(neural_network_t *network, int in_layer, int
   const double (*W)[in_size] = neural_layer_t_weights(network, in_layer + 1);
   const double *b = network->bias + out_offset;
 
-  // A[L+1] = tanh(Z[L+1] = W[L+1] * A[L] + b[L+1])
+  // A[L+1] = sigmoid(Z[L+1]) = W[L+1] * A[L] + b[L+1])
   for (int i = 0; i < out_size; ++i) {
     double *A_out_i = A_out + i * m;
     for (int j = 0; j < m; ++j) {
@@ -570,7 +581,7 @@ static void forward_propagate_layer(neural_network_t *network, int in_layer, int
     }
 
     for (int j = 0; j < m; ++j) {
-      A_out_i[j] = tanh(A_out_i[j]);
+      A_out_i[j] = neural_sigmoid(A_out_i[j]);
     }
   }
 }
@@ -599,7 +610,7 @@ static void calculate_output_layer(neural_network_t *network, int output_layer) 
     for (int j = 0; j < in_size; j++) {
       sum += t_weights[i][j] * input[j];
     }
-    output[i] = tanh(sum);
+    output[i] = neural_sigmoid(sum);
   }
 }
 
