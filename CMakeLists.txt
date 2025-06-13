@@ -36,7 +36,10 @@ target_link_libraries(AntMatrix PRIVATE AntMatrix_static)
 
 # Extras only for WASM
 if(USE_WEB_RAYLIB)
-    set(CMAKE_EXECUTABLE_SUFFIX ".html") # CMake will generate AntMatrix.html
+    set_target_properties(AntMatrix PROPERTIES
+        OUTPUT_NAME "index"
+        SUFFIX      ".html"
+    )
     set(WASM_SHELL "${CMAKE_SOURCE_DIR}/web/wasm-shell.html")
     configure_file(${CMAKE_SOURCE_DIR}/web/favicon.png ${CMAKE_CURRENT_BINARY_DIR}/favicon.png COPYONLY)
 
@@ -48,14 +51,16 @@ if(USE_WEB_RAYLIB)
         "-sUSE_WEBGL2=1"
         "-sOFFSCREENCANVAS_SUPPORT=1"
         "--shell-file=${WASM_SHELL}"
-        "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets")
-endif()
+        "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets"
+    )
+else()
 
-file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
-add_custom_target(Assets ALL COMMENT "Copying assets folder")
-add_dependencies(Assets ${PROJECT_NAME})
+    file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+    add_custom_target(Assets ALL COMMENT "Copying assets folder")
+    add_dependencies(Assets ${PROJECT_NAME})
 
-include(CTest)
-if (BUILD_TESTING)
-    add_subdirectory(test)
+    include(CTest)
+    if (BUILD_TESTING)
+        add_subdirectory(test)
+    endif()
 endif()
