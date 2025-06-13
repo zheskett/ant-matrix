@@ -1,5 +1,7 @@
 #include "main/simulation.h"
 
+#include <pthread.h>
+#include <stdatomic.h>
 #include <time.h>
 
 #include "raymath.h"
@@ -21,6 +23,8 @@ static neural_network_t *create_ant_net();
 static void network_train_step(ant_t *ant, const double *inputs, const double *outputs);
 
 #pragma endregion
+
+typedef enum { SINGLE_THREAD, MULTI_THREAD, ENDING_THREAD } simulation_mode_t;
 
 #pragma region setup
 
@@ -82,7 +86,10 @@ RenderTexture2D offscreen;
 Texture2D ant_texture;
 Rectangle letterbox = {0, 0, SCREEN_W, SCREEN_H};
 
-int to_resize = -1;
+pthread_t training_thread = {0};
+atomic_bool run_training_thread = false;
+atomic_bool training_thread_done = false;
+simulation_mode_t simulation_mode = SINGLE_THREAD;
 
 #pragma endregion
 
@@ -90,7 +97,7 @@ int start(int argc, char **argv) {
   initialize();
 
   while (!WindowShouldClose()) {
-    if (IsWindowResized() || to_resize == 0) {
+    if (IsWindowResized()) {
       resize_window(GetScreenWidth(), GetScreenHeight());
     }
 
@@ -98,7 +105,6 @@ int start(int argc, char **argv) {
     update();
     render();
     render_present();
-    to_resize = MAX(to_resize - 1, -1);
   }
 
   UnloadRenderTexture(offscreen);
@@ -316,6 +322,21 @@ static void render() {
 
   // Checkbox to enable/disable warp
   warp = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 90}, "Warp", warp);
+
+  Rectangle thread_button_bounds = {SCREEN_W - 350, 115, 300, 20};
+  // Checkbox to do multiple threads
+  if (simulation_mode == SINGLE_THREAD) {
+    if (gui_draw_button(mouse_pos, thread_button_bounds, "Switch to Multi-Thread")) {
+      simulation_mode = MULTI_THREAD;
+      atomic_store(&run_training_thread, true);
+      // pthread_create(&training_thread, NULL, (void *(*)(void *))train_ants, NULL);
+    }
+  } else if (simulation_mode == MULTI_THREAD) {
+    if (gui_draw_button(mouse_pos, thread_button_bounds, "Switch to Single-Thread")) {
+      simulation_mode = ENDING_THREAD;
+      atomic_store(&run_training_thread, false);
+    }
+  }
 
   gui_draw_label((Vector2){10, 45}, TextFormat("Tick Speed: %.0f", tick_speed));
 
