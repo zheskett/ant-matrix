@@ -30,8 +30,7 @@ int test_xor() {
                                   inputs[prev_index][1]};
     const double outputs_ptr[2] = {expected_outputs[rand_index][0], expected_outputs[prev_index][0]};
 
-    double error = neural_train(network, 2, inputs_ptr, outputs_ptr, 0.01);
-    // printf("%f\n", error);
+    neural_train(network, 2, inputs_ptr, outputs_ptr, 0.01);
   }
 
   neural_run(network, inputs[1]);

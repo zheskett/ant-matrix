@@ -4,7 +4,7 @@ project(AntMatrix C)
 option(USE_WEB_RAYLIB "Build for WASM with an externally-built raylib-web" OFF)
 
 set(CMAKE_C_STANDARD 11)
-#add_compile_options(-Wall -Werror)
+add_compile_options(-Wall -Werror)
 
 file(GLOB_RECURSE SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 list(FILTER SRC EXCLUDE REGEX ".*/src/main\\.c$")

@@ -175,7 +175,6 @@ static void input() {
         Vector2Add(mouse_pos, Vector2Subtract(target, Vector2Scale((Vector2){SCREEN_W / 2.0f, SCREEN_H / 2.0f},
                                                                    WORLD_SCALE / (WORLD_SCALE * zoom))));
 
-    float prev_zoom = zoom;
     zoom += zoom_delta * 0.1f;
     zoom = fmaxf(1.0f / WORLD_SCALE, fminf(zoom, 2.0f));
     zoom = roundf(zoom * 100.0f) / 100.0f;
@@ -209,7 +208,6 @@ static void update() {
   static bool first = false;
   static double last_time = 0.0;
   static double simulation_time = 0.0;
-  static double last_update_time = 0.0;
 
   if (reset) {
     reset = false;
@@ -224,7 +222,6 @@ static void update() {
 
   if (!first) {
     last_time = GetTime();
-    last_update_time = last_time;
     first = true;
   }
   const double current_time = GetTime();

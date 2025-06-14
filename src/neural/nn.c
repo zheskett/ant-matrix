@@ -101,9 +101,6 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   const int num_layers = network->num_hidden_layers + 2;
   // Calculate required memory
   const int Y_items = network->neuron_counts[num_layers - 1] * m;
-  const int A_matrices_items = network->total_neurons * m;
-  const int delta_matrices_items = network->total_neurons * m;
-  const int dC_dW_items = network->total_weights;
   const int L = num_layers - 1;
 
   double cost = 0.0;
@@ -212,16 +209,17 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     const int out_size = network->neuron_counts[l + 1];
     const double (*W_l1)[in_size] = neural_layer_t_weights(network, l + 1);
     const double *delta_l1 = delta[l + 1];
+    double *delta_l = delta[l];
     double *bias_l = network->bias + neural_layer_offset(network, l);
 
     // Cache optimized order
     // #pragma omp parallel for
     for (int j = 0; j < in_size; j++) {
-      double *delta_lj = delta[l] + j * m;
+      double *delta_lj = delta_l + j * m;
       double sum = 0.0;
       const double *A_lj = A[l] + j * m;
       for (int i = 0; i < out_size; i++) {
-        const double *delta_l1i = delta[l + 1] + i * m;
+        const double *delta_l1i = delta_l1 + i * m;
         for (int k = 0; k < m; k++) {
           delta_lj[k] += W_l1[i][j] * delta_l1i[k];
         }
@@ -242,7 +240,7 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     for (int i = 0; i < in_size; i++) {
       // l-1 since 0-indexed
       double *dC_dW_li = dC_dW[l - 1] + i * network->neuron_counts[l - 1];
-      const double *delta_li = delta[l] + i * m;
+      const double *delta_li = delta_l + i * m;
       for (int j = 0; j < network->neuron_counts[l - 1]; j++) {
         const double *A_l1j = A[l - 1] + j * m;
         double sum = 0.0;
@@ -538,10 +536,10 @@ static double calculate_cost(neural_network_t *network, int m, const double *y, 
 
   double sum = 0.0;
   const double m_inv = 1.0 / (double)m;
-  const double mx2_inv = 0.5 * m_inv;
   const int total = network->neuron_counts[network->num_hidden_layers + 1] * m;
 
   // Mean Squared Error (MSE) cost function
+  // const double mx2_inv = 0.5 * m_inv;
   // for (int i = 0; i < total; ++i) {
   //   const double diff = y[i] - y_hat[i];
   //   sum += diff * diff;

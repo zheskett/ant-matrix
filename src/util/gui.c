@@ -55,7 +55,6 @@ bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char *text, bo
   }
   DrawRectangleLinesEx(check_rectangle, CHECKBOX_BORDER_SIZE, CHECKBOX_BORDER_COLOR);
 
-  const int text_width = MeasureText(text, TEXT_SIZE);
   Vector2 text_position = {check_rectangle.x + check_rectangle.width + 5,
                            check_rectangle.y + (check_rectangle.height - TEXT_SIZE) / 2};
   DrawText(text, (int)text_position.x, (int)text_position.y, TEXT_SIZE, TEXT_COLOR);
@@ -87,13 +86,13 @@ void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool d
     int in_size = network->neuron_counts[i - 1];
     int out_size = network->neuron_counts[i];
 
-    const int layer_height_in = network->neuron_counts[i - 1] * NETWORK_NEURON_SPACING;
+    const int layer_height_in = in_size * NETWORK_NEURON_SPACING;
     float y_offset_in = (max_height - layer_height_in) / 2.0f;
-    const int layer_height_out = network->neuron_counts[i] * NETWORK_NEURON_SPACING;
+    const int layer_height_out = out_size * NETWORK_NEURON_SPACING;
     float y_offset_out = (max_height - layer_height_out) / 2.0f;
     double (*weights)[in_size] = neural_layer_t_weights(network, i);
-    for (int k = 0; k < network->neuron_counts[i]; k++) {
-      for (int j = 0; j < network->neuron_counts[i - 1]; j++) {
+    for (int k = 0; k < out_size; k++) {
+      for (int j = 0; j < in_size; j++) {
         Vector2 prev_neuron_pos = {position.x + (i - 1) * NETWORK_LAYER_SPACING + NETWORK_NEURON_SIZE,
                                    position.y + j * NETWORK_NEURON_SPACING + y_offset_in + NETWORK_NEURON_SIZE / 2.0f};
         Vector2 neuron_pos = {position.x + i * NETWORK_LAYER_SPACING,
