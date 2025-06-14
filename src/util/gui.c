@@ -67,6 +67,12 @@ void gui_draw_label(Vector2 position, const char *text) {
   DrawText(text, (int)position.x, (int)position.y, TEXT_SIZE, TEXT_COLOR);
 }
 
+void gui_draw_label_centered(Vector2 position, const char *text) {
+  const int text_width = MeasureText(text, TEXT_SIZE);
+  Vector2 centered_position = {position.x - text_width / 2.0f, position.y};
+  gui_draw_label(centered_position, text);
+}
+
 void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool draw_output) {
   if (!network) {
     return;

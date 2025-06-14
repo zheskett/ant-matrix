@@ -60,6 +60,14 @@ bool gui_draw_checkbox(Vector2 mouse_pos, Vector2 position, const char *text, bo
 void gui_draw_label(Vector2 position, const char *text);
 
 /**
+ * @brief Draws a label centered at the specified position with the given text.
+ *
+ * @param position The position to center the label at.
+ * @param text The text to display in the label.
+ */
+void gui_draw_label_centered(Vector2 position, const char *text);
+
+/**
  * @brief Draws a neural network visualization at the specified position.
  *
  * @param position The position to draw the neural network visualization.

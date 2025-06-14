@@ -17,6 +17,7 @@ static void initialize(void);
 static void resize_window(int w, int h);
 static void render_present(void);
 
+static void *training_thread_func(void *arg);
 static void reset_simulation(void);
 static void train_ants(double fixed_delta);
 static neural_network_t *create_ant_net();
@@ -105,6 +106,11 @@ int start(int argc, char **argv) {
     update();
     render();
     render_present();
+  }
+
+  if (simulation_mode == MULTI_THREAD || simulation_mode == ENDING_THREAD) {
+    atomic_store(&run_training_thread, false);
+    pthread_join(training_thread, NULL);
   }
 
   UnloadRenderTexture(offscreen);
@@ -198,8 +204,7 @@ static void input() {
 }
 
 static void update() {
-  const double fixed_delta = 1.0 / (double)TICK_RATE;
-  const double scaled_delta = fixed_delta / tick_speed;
+  const double scaled_delta = FIXED_DELTA / tick_speed;
   static double simulated_time = 0.0;
   static bool first = false;
   static double last_time = 0.0;
@@ -208,11 +213,13 @@ static void update() {
 
   if (reset) {
     reset = false;
-    first = false;
-    simulation_time = 0.0;
-    simulated_time = 0.0;
+    if (simulation_mode == SINGLE_THREAD) {
+      first = false;
+      simulation_time = 0.0;
+      simulated_time = 0.0;
 
-    reset_simulation();
+      reset_simulation();
+    }
   }
 
   if (!first) {
@@ -226,7 +233,7 @@ static void update() {
   last_time = current_time;
   simulation_time += delta_time;
 
-  if (warp) {
+  if (warp && simulation_mode == SINGLE_THREAD) {
     if (tick_speed <= 1.1) {
       tick_speed = WARP_SPEED;
     } else {
@@ -250,31 +257,29 @@ static void update() {
 
   while (simulation_time >= scaled_delta) {
     simulation_time -= scaled_delta;
-    simulated_time += fixed_delta;
+    simulated_time += FIXED_DELTA;
 
-    // Reset simulation every RESET_TIME (scaled by tick speed)
-    if (simulated_time >= RESET_TIME && auto_reset) {
-      reset_simulation();
-      simulated_time = 0.0;
+    if (simulation_mode == SINGLE_THREAD) {
+      // Reset simulation every RESET_TIME (scaled by tick speed)
+      if (simulated_time >= RESET_TIME && auto_reset) {
+        reset_simulation();
+        simulated_time = 0.0;
+      }
+
+      fixed_update(FIXED_DELTA);
     }
+  }
 
-    fixed_update(fixed_delta);
+  if (simulation_mode == ENDING_THREAD) {
+    if (atomic_load(&training_thread_done)) {
+      pthread_join(training_thread, NULL);
+      simulation_mode = SINGLE_THREAD;
+      atomic_store(&training_thread_done, false);
+    }
   }
 }
 
-static void fixed_update(double fixed_delta) {
-  if (training && random_session) {
-    for (int i = 0; i < g_ant_list.length; i++) {
-      ant_t *ant = dyn_arr_get(g_ant_list, i);
-      ant->rotation = (rand() % 360) * DEG2RAD_D;
-      ant->pos.x = rand() % WORLD_W;
-      ant->pos.y = rand() % WORLD_H;
-      ant->has_food = rand() % 4 == 0;
-      ant->is_coliding = false;
-    }
-  }
-  train_ants(fixed_delta);
-}
+static void fixed_update(double fixed_delta) { train_ants(fixed_delta); }
 
 static void render() {
   Camera2D cam = {0};
@@ -283,26 +288,33 @@ static void render() {
   cam.rotation = 0.0f;
   cam.zoom = zoom;
 
+  Vector2 mouse_pos = GetMousePosition();
+  mouse_pos.x = Remap(mouse_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
+  mouse_pos.y = Remap(mouse_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
+
   BeginTextureMode(offscreen);
   BeginMode2D(cam);
   ClearBackground(BROWN);
 
-  DrawCircleV(v2d_to_v2(spawn), ANT_SPAWN_RADIUS, DARKBLUE);
+  if (simulation_mode == SINGLE_THREAD) {
+    DrawCircleV(v2d_to_v2(spawn), ANT_SPAWN_RADIUS, DARKBLUE);
 
-  for (int i = 0; i < g_food_list.length; i++) {
-    food_t *food = dyn_arr_get(g_food_list, i);
-    food_draw(food);
+    for (int i = 0; i < g_food_list.length; i++) {
+      food_t *food = dyn_arr_get(g_food_list, i);
+      food_draw(food);
+    }
+    for (int i = 0; i < g_ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(g_ant_list, i);
+      ant_draw(ant);
+    }
+
+    EndMode2D();
+  } else {
+    EndMode2D();
+
+    gui_draw_label_centered((Vector2){SCREEN_W / 2, SCREEN_W / 2},
+                            "Running in multi-thread mode, rendering is disabled.");
   }
-  for (int i = 0; i < g_ant_list.length; i++) {
-    ant_t *ant = dyn_arr_get(g_ant_list, i);
-    ant_draw(ant);
-  }
-
-  EndMode2D();
-
-  Vector2 mouse_pos = GetMousePosition();
-  mouse_pos.x = Remap(mouse_pos.x - letterbox.x, 0, window_w - 2 * letterbox.x, 0, SCREEN_W);
-  mouse_pos.y = Remap(mouse_pos.y - letterbox.y, 0, window_h - 2 * letterbox.y, 0, SCREEN_H);
 
   DrawFPS(0, 0);
   if (gui_draw_button(mouse_pos, (Rectangle){10, 20, 300, 20}, "Reset Speed")) {
@@ -315,7 +327,11 @@ static void render() {
   }
 
   // Checkbox to start runing the simulation from the network
-  training = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 40}, "Train", training);
+  // This checkbox is always on in multi-thread mode
+  const bool train_checkbox = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 40}, "Train", training);
+  if (simulation_mode == SINGLE_THREAD) {
+    training = train_checkbox;
+  }
 
   // Checkbox to enable/disable auto reset
   auto_reset = gui_draw_checkbox(mouse_pos, (Vector2){SCREEN_W - 350, 65}, "Auto Reset", auto_reset);
@@ -329,7 +345,14 @@ static void render() {
     if (gui_draw_button(mouse_pos, thread_button_bounds, "Switch to Multi-Thread")) {
       simulation_mode = MULTI_THREAD;
       atomic_store(&run_training_thread, true);
-      // pthread_create(&training_thread, NULL, (void *(*)(void *))train_ants, NULL);
+      atomic_store(&training_thread_done, false);
+      training = true;
+
+      const int error = pthread_create(&training_thread, NULL, training_thread_func, NULL);
+      if (error != 0) {
+        fprintf(stderr, "Failed to create training thread: %s\n", strerror(error));
+        exit(EXIT_FAILURE);
+      }
     }
   } else if (simulation_mode == MULTI_THREAD) {
     if (gui_draw_button(mouse_pos, thread_button_bounds, "Switch to Single-Thread")) {
@@ -346,6 +369,11 @@ static void render() {
   }
 
   EndTextureMode();
+
+  if (simulation_mode != SINGLE_THREAD) {
+    training = true;
+    reset = false;
+  }
 }
 
 static void initialize() {
@@ -405,6 +433,26 @@ static void initialize() {
 #endif
 }
 
+static void *training_thread_func(void *arg) {
+  (void)arg; // Unused parameter
+  double run_time = 0.0;
+
+  while (atomic_load(&run_training_thread)) {
+    for (int i = 0; i < THREAD_TICKS_PER_CHECK; i++) {
+      train_ants(FIXED_DELTA);
+      run_time += FIXED_DELTA;
+
+      if (run_time >= RESET_TIME) {
+        run_time = 0.0;
+        reset_simulation();
+      }
+    }
+  }
+
+  atomic_store(&training_thread_done, true);
+  return NULL;
+}
+
 static void resize_window(int w, int h) {
   SetWindowSize(w, h);
   window_w = w;
@@ -437,6 +485,17 @@ static void render_present() {
 }
 
 static void train_ants(double fixed_delta) {
+  if (training && random_session) {
+    for (int i = 0; i < g_ant_list.length; i++) {
+      ant_t *ant = dyn_arr_get(g_ant_list, i);
+      ant->rotation = (rand() % 360) * DEG2RAD_D;
+      ant->pos.x = rand() % WORLD_W;
+      ant->pos.y = rand() % WORLD_H;
+      ant->has_food = rand() % 4 == 0;
+      ant->is_coliding = false;
+    }
+  }
+
   for (int i = 0; i < g_ant_list.length; i++) {
     ant_t *ant = dyn_arr_get(g_ant_list, i);
     ant_update_nearest_food(ant);
@@ -610,7 +669,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
     epoch++;
   }
 
-  if (!warp && rand() % 10000 == 0) {
+  if (simulation_mode == SINGLE_THREAD && !warp && rand() % 10000 == 0) {
     const double *pred;
     pred = neural_run(ant->net, inputs);
     printf("Inputs: ");
