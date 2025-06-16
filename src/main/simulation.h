@@ -15,8 +15,8 @@
 // Multiple networks per ant?
 #define PER_ANT_NETWORK 1
 
-#define LEARN_RATE 0.08l
-#define LEARN_RATE_DECAY 0.999999995l
+#define LEARN_RATE 0.11
+#define LEARN_RATE_DECAY 0.99999999
 
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 10

@@ -52,11 +52,11 @@ typedef struct {
  * @brief Represents an ant entity in the simulation.
  */
 typedef struct {
+  vector2d_t spawn;      /**< The spawn position of the ant */
+  vector2d_t pos;        /**< The current position of the ant */
   Texture2D *texture;    /**< Pointer to the texture of the ant */
   food_t *nearest_food;  /**< The nearest detected food object (in food list) */
   neural_network_t *net; /**< Pointer to the neural network for the ant's behavior */
-  vector2d_t spawn;      /**< The spawn position of the ant */
-  vector2d_t pos;        /**< The current position of the ant */
   double rotation;       /**< The current rotation of the ant in radians (-π to π) */
   bool has_food;         /**< Whether the ant is currently carrying food */
   bool is_coliding;      /**< Whether the ant is currently colliding with something */

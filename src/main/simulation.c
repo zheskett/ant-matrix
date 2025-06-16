@@ -51,7 +51,7 @@ typedef enum { SINGLE_THREAD, MULTI_THREAD, ENDING_THREAD } simulation_mode_t;
  * 5: drop
  */
 neural_network_t *ant_network = NULL;
-long double learning_rate = LEARN_RATE;
+double learning_rate = LEARN_RATE;
 bool training = true;
 bool reset = false;
 bool auto_reset = true;
@@ -662,7 +662,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
     }
     dyn_arr_clear(input_list);
     dyn_arr_clear(output_list);
-    learning_rate = fmaxl(learning_rate * (powl(LEARN_RATE_DECAY, (long double)m)), 1e-4);
+    learning_rate = fmax(learning_rate * (pow(LEARN_RATE_DECAY, (double)m)), 1e-4);
     epoch++;
   }
 

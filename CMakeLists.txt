@@ -30,6 +30,15 @@ add_library(AntMatrix_static STATIC ${SRC})
 target_include_directories(AntMatrix_static PUBLIC
     "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/lib")
 
+if (USE_WEB_RAYLIB)
+    set(EM_PTHREAD_FLAGS
+        "-sUSE_PTHREADS=1"
+        "-pthread"
+    )
+    
+    target_compile_options(AntMatrix_static PRIVATE ${EM_PTHREAD_FLAGS})
+endif()
+
 target_link_libraries(AntMatrix_static PUBLIC raylib)
 
 add_executable(AntMatrix src/main.c)
@@ -46,11 +55,14 @@ if(USE_WEB_RAYLIB)
 
     # Preload the assets folder so FS.open("assets/…") works:
     target_link_options(AntMatrix PRIVATE
+        "-sOFFSCREENCANVAS_SUPPORT=1"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sUSE_PTHREADS=1"
+        "-pthread"
         "-sUSE_GLFW=3"
         "-sASYNCIFY"
-        "-sALLOW_MEMORY_GROWTH=1"
+        "-sPTHREAD_POOL_SIZE=4"
         "-sUSE_WEBGL2=1"
-        "-sOFFSCREENCANVAS_SUPPORT=1"
         "--shell-file=${WASM_SHELL}"
         "--preload-file=${CMAKE_SOURCE_DIR}/assets@assets"
     )

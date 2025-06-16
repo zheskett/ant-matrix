@@ -144,7 +144,8 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     }
   }
 
-  memset(delta[0], 0, network->total_neurons * m * sizeof(double));
+  // Initialize all of delta to zero
+  memset(*delta, 0, network->total_neurons * m * sizeof(double));
 
   // Feed forward through the network
   for (int i = 0; i < L; i++) {
