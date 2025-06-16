@@ -658,7 +658,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
   if (run) {
     const double error = neural_train(ant->net, m, input_ptr, output_ptr, learning_rate);
     if (epoch % (MAX(1, ((int)2e6 / m))) == 0) {
-      printf("Epoch: %d, Error: % .6f, Learning Rate: % .6Lf\n", epoch, error, learning_rate);
+      printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
     }
     dyn_arr_clear(input_list);
     dyn_arr_clear(output_list);
