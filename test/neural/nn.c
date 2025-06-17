@@ -29,18 +29,24 @@ int test_xor() {
     const double inputs_ptr[4] = {inputs[rand_index][0], inputs[rand_index][1], inputs[prev_index][0],
                                   inputs[prev_index][1]};
     const double outputs_ptr[2] = {expected_outputs[rand_index][0], expected_outputs[prev_index][0]};
+    const matrix_t inputs_matrix = {(double *)inputs_ptr, 2, 2};
+    const matrix_t outputs_matrix = {(double *)outputs_ptr, 2, 1};
 
-    neural_train(network, 2, inputs_ptr, outputs_ptr, 0.01);
+    double cost = neural_train(network, &inputs_matrix, &outputs_matrix, 0.01);
+    assert(!isnan(cost) && cost >= 0.0);
+    (void)cost; // Suppress unused variable warning
   }
 
-  neural_run(network, inputs[1]);
+  const vector_t inputs_vec[4] = {
+      {(double *)inputs[0], 2}, {(double *)inputs[1], 2}, {(double *)inputs[2], 2}, {(double *)inputs[3], 2}};
+  neural_run(network, &inputs_vec[1]);
   neural_print(network, stdout);
 
   for (int i = 0; i < 4; i++) {
-    const double *output = neural_run(network, inputs[i]);
-    printf("Input: [%f, %f] -> Output: [%f]\n", inputs[i][0], inputs[i][1], output[0]);
+    const vector_t *output = neural_run(network, &inputs_vec[i]);
+    printf("Input: [%f, %f] -> Output: [%f]\n", inputs[i][0], inputs[i][1], output->data[0]);
     fflush(stdout);
-    assert(fabs(output[0] - expected_outputs[i][0]) < 0.2);
+    assert(fabs(output->data[0] - expected_outputs[i][0]) < 0.2);
   }
 
   neural_free(network);
@@ -102,8 +108,8 @@ int main() {
   neural_randomize_weights(network, -1.0, 1.0);
   neural_randomize_bias(network, -0.5, 0.5);
 
-  double input[] = {0.5, 0.2, 0.1};
-  const double *output = neural_run(network, input);
+  // vector_t input = {(double[3]){0.1, 0.2, 0.3}, 3};
+  // const vector_t *output = neural_run(network, &input);
   // printf("[");
   // for (int i = 0; i < network->neuron_counts[network->num_hidden_layers + 1]; i++) {
   //   if (i > 0 && i < network->neuron_counts[network->num_hidden_layers + 1]) {
@@ -114,9 +120,9 @@ int main() {
   // printf("]\n");
   // neural_print(network, stdout);
 
-  double score = neural_train(network, 1, input, output, 0.01);
-
-  score = neural_train(network, 1, input, (const double[5]){0.5, 0.5, 0.5, 0.5, 0.5}, 0.01);
+  matrix_t input_matrix = {(double[3]){0.1, 0.2, 0.3}, 3, 1};
+  matrix_t output_matrix = {(double[5]){0.5, 0.5, 0.5, 0.5, 0.5}, 5, 1};
+  double score = neural_train(network, &input_matrix, &output_matrix, 0.01);
   printf("Cost after training: %f\n", score);
 
   neural_free(network);

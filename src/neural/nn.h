@@ -25,7 +25,8 @@ typedef struct {
   vector_t *output;   /**< Output of each neuron in the network, array indexed by layer */
   matrix_t *weightsT; /**< Weights for the connections between neurons, stored as transposed, array indexed by layer */
   vector_t *bias;     /**< Biases for each neuron in the network, array indexed by layer */
-  char *data;         /**< Pointer to the data used for training and inference */
+  void *data;         /**< Pointer to the data used for training and inference */
+  matrix_t Q_data;    /**< Q matrix for storing data used in training and inference */
   size_t data_size;   /**< Size of the data used for training and inference */
   int num_hidden_layers; /**< Number of hidden layers */
   int num_layers;        /**< Total number of layers in the network (input + hidden + output) */
@@ -53,19 +54,18 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
  * @param input The input data for the neural network.
  * @return A pointer to the output of the neural network.
  */
-const double *neural_run(neural_network_t *network, const double *input);
+const vector_t *neural_run(neural_network_t *network, const vector_t *input);
 
 /**
  * @brief Train the neural network using backpropagation.
  *
  * @param network The neural network to train.
- * @param m The number of training examples
- * @param inputs An array of input values for the training examples (m x input_neurons).
- * @param desired_output An array of desired output values for the training examples (m x output_neurons).
+ * @param inputs An matrix of input values for the training examples (m x input_neurons).
+ * @param desired_output An matrix of desired output values for the training examples (m x output_neurons).
  * @param lr The learning rate for weight updates.
  * @return The cost of the training process, which can be used to evaluate the performance of the network.
  */
-double neural_train(neural_network_t *network, int m, const double *inputs, const double *desired_outputs, double lr);
+double neural_train(neural_network_t *network, const matrix_t *inputs, const matrix_t *desired_outputs, double lr);
 
 /**
  * @brief Randomize the weights of the neural network.

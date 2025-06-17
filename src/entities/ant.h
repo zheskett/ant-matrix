@@ -26,9 +26,9 @@
  * @brief Represents the possible turn actions an ant can take.
  */
 typedef enum {
-  ANT_TURN_LEFT = -1,
-  ANT_TURN_NONE = 0,
-  ANT_TURN_RIGHT = 1,
+  ANT_TURN_RIGHT = 0,
+  ANT_TURN_NONE = 1,
+  ANT_TURN_LEFT = 2,
 } ant_turn_action_t;
 
 /**

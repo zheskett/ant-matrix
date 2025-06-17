@@ -6,10 +6,11 @@
 
 #include "util/util.h"
 
-static double calculate_cost(neural_network_t *network, int m, const double *y, const double *y_hat);
+static double calculate_cost(neural_network_t *network, matrix_t y, matrix_t y_hat);
 static void forward_propagate_layer(neural_network_t *network, int layer, const matrix_t A_in, matrix_t A_out);
 static void calculate_output_layer(neural_network_t *network, int output_layer);
-static char *allocate_data(neural_network_t *network, int m);
+static void *allocate_data(neural_network_t *network, int m);
+// static void *allocate_data_Q(neural_network_t *network, int m);
 
 static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
 double enc(double x) { return 0.5 * (x + 1.0); }
@@ -102,21 +103,25 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
   return network;
 }
 
-const double *neural_run(neural_network_t *network, const double *input) {
-  memcpy(network->output[0].data, input, network->neuron_counts[0] * sizeof(double));
-  for (int i = 1; i < network->num_hidden_layers + 2; i++) {
+const vector_t *neural_run(neural_network_t *network, const vector_t *input) {
+  memcpy(network->output[0].data, input->data, network->neuron_counts[0] * sizeof(double));
+  for (int i = 1; i < network->num_layers; i++) {
     calculate_output_layer(network, i);
   }
 
-  return (const double *)(network->output[network->num_layers - 1].data);
+  return &network->output[network->num_layers - 1];
 }
 
-double neural_train(neural_network_t *network, int m, const double *inputs, const double *desired_outputs, double lr) {
-  if (!network || !inputs || !desired_outputs || m == 0) {
+double neural_train(neural_network_t *network, const matrix_t *inputs, const matrix_t *desired_outputs, double lr) {
+  if (!network || !inputs || !desired_outputs || inputs->cols != network->neuron_counts[0] ||
+      desired_outputs->cols != network->neuron_counts[network->num_layers - 1] ||
+      inputs->rows != desired_outputs->rows) {
     return NAN;
   }
+
+  const int m = inputs->rows;
   const double m_inv = 1.0 / (double)m;
-  const int num_layers = network->num_hidden_layers + 2;
+  const int num_layers = network->num_layers;
   // Calculate required memory
   const int Y_items = m * network->neuron_counts[num_layers - 1];
   const int L = num_layers - 1;
@@ -156,8 +161,8 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   // Transpose inputs, desired_outputs for Y and A[0]
   // #pragma omp parallel for
   for (int j = 0; j < m; j++) {
-    const double *do_j = desired_outputs + j * network->neuron_counts[L];
-    const double *in_j = inputs + j * network->neuron_counts[0];
+    const double *do_j = desired_outputs->data + j * network->neuron_counts[L];
+    const double *in_j = inputs->data + j * network->neuron_counts[0];
     for (int i = 0; i < network->neuron_counts[L]; i++) {
       Y.data[i * m + j] = do_j[i];
     }
@@ -175,7 +180,7 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     forward_propagate_layer(network, i, A[i], A[i + 1]);
   }
 
-  cost = calculate_cost(network, m, Y.data, A[L].data);
+  cost = calculate_cost(network, Y, A[L]);
 
   // Backpropagation and weight updates
   /*
@@ -211,71 +216,38 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   }
 
   // dC/dW^L = (delta^L)((A^{L-1})^T)
-  for (int i = 0; i < network->neuron_counts[L]; i++) {
-    // L-1 since 0-indexed
-    double *dC_dW_Li = dC_dW[L - 1].data + i * network->neuron_counts[L - 1];
-    const double *delta_Li = delta[L].data + i * m;
-    for (int j = 0; j < network->neuron_counts[L - 1]; j++) {
-      const double *A_L1j = A[L - 1].data + j * m;
-      double sum = 0.0;
-      for (int k = 0; k < m; k++) {
-        sum += delta_Li[k] * A_L1j[k];
-      }
-      // Gradient descent weight, cannot adjust the in-place weights yet
-      dC_dW_Li[j] = sum;
-    }
-  }
+  matrix_multiply_transformB(&delta[L], &A[L - 1], &dC_dW[L - 1], true);
 
   // Hidden layers (1 - L-1)
   for (int l = num_layers - 2; l >= 1; l--) {
     // dC/dA^[l] = (W^[l+1]^T)(delta^[l+1])
-    const int in_size = network->neuron_counts[l];
-    const int out_size = network->neuron_counts[l + 1];
     const matrix_t W_l1_mtr = neural_layer_weightsT(network, l + 1);
-    double (*W_l1)[in_size] = (double (*)[in_size])W_l1_mtr.data;
-    const double *delta_l1 = delta[l + 1].data;
-    double *delta_l = delta[l].data;
-    double *bias_l = network->bias[l].data;
+    const matrix_t delta_l1 = delta[l + 1];
+    matrix_t delta_l = delta[l];
+    const vector_t bias_l = network->bias[l];
+    const matrix_t A_l = A[l];
+
+    matrix_multiply_transformA(&W_l1_mtr, &delta_l1, &delta_l, false);
 
     // Cache optimized order
     // #pragma omp parallel for
-    for (int j = 0; j < in_size; j++) {
-      double *delta_lj = delta_l + j * m;
+    for (int i = 0; i < A_l.rows; i++) {
+      double *delta_li = delta_l.data + i * m;
+      const double *A_li = A_l.data + i * m;
       double sum = 0.0;
-      const double *A_lj = A[l].data + j * m;
-      for (int i = 0; i < out_size; i++) {
-        const double *delta_l1i = delta_l1 + i * m;
-        for (int k = 0; k < m; k++) {
-          delta_lj[k] += W_l1[i][j] * delta_l1i[k];
-        }
-      }
 
       // delta^l = dC/dA^[l] * dA^[l]/dZ^[l]
-      for (int k = 0; k < m; k++) {
-        delta_lj[k] *= (A_lj[k] * (1 - A_lj[k]));
-        sum += delta_lj[k];
+      for (int j = 0; j < m; j++) {
+        delta_li[j] *= (A_li[j] * (1 - A_li[j]));
+        sum += delta_li[j];
       }
 
       // Gradient descent bias
-      bias_l[j] -= lr * sum;
+      bias_l.data[i] -= lr * sum;
     }
 
     // dC/dW^l = (delta^l)((A^{l-1})^T)
-    // #pragma omp parallel for
-    for (int i = 0; i < in_size; i++) {
-      // l-1 since 0-indexed
-      double *dC_dW_li = dC_dW[l - 1].data + i * network->neuron_counts[l - 1];
-      const double *delta_li = delta_l + i * m;
-      for (int j = 0; j < network->neuron_counts[l - 1]; j++) {
-        const double *A_l1j = A[l - 1].data + j * m;
-        double sum = 0.0;
-        for (int k = 0; k < m; k++) {
-          sum += delta_li[k] * A_l1j[k];
-        }
-        // Gradient descent weight, cannot adjust the in-place weights yet
-        dC_dW_li[j] = sum;
-      }
-    }
+    matrix_multiply_transformB(&delta_l, &A[l - 1], &dC_dW[l - 1], true);
   }
 
   // Apply gradient descent on weights
@@ -523,14 +495,15 @@ void neural_free(neural_network_t *network) {
   free(network);
 }
 
-static double calculate_cost(neural_network_t *network, int m, const double *y, const double *y_hat) {
-  if (!network || !y || !y_hat || m == 0) {
+static double calculate_cost(neural_network_t *network, const matrix_t y, const matrix_t y_hat) {
+  if (!network || !y.data || !y_hat.data || y.rows != y_hat.rows || y.cols != y_hat.cols) {
     return NAN;
   }
 
+  int m = y.cols;
   double sum = 0.0;
   const double m_inv = 1.0 / (double)m;
-  const int total = network->neuron_counts[network->num_hidden_layers + 1] * m;
+  const int total = y.rows * m;
 
   // Mean Squared Error (MSE) cost function
   // const double mx2_inv = 0.5 * m_inv;
@@ -542,8 +515,8 @@ static double calculate_cost(neural_network_t *network, int m, const double *y, 
 
   // Binary Cross-Entropy (BCE) cost function
   for (int i = 0; i < total; ++i) {
-    const double y_i = y[i];
-    const double y_hat_i_clamped = fmax(fmin(y_hat[i], 1.0 - 1e-12), 1e-12);
+    const double y_i = y.data[i];
+    const double y_hat_i_clamped = fmax(fmin(y_hat.data[i], 1.0 - 1e-12), 1e-12);
 
     sum += y_i * log(y_hat_i_clamped) + (1 - y_i) * log(1.0 - y_hat_i_clamped);
   }
@@ -561,17 +534,12 @@ static void forward_propagate_layer(neural_network_t *network, int in_layer, con
     for (int j = 0; j < m; ++j) {
       A_out_i[j] = b.data[i];
     }
+  }
 
-    // Cache optimized matrix multiplication
-    for (int k = 0; k < A_in.rows; k++) {
-      const double W_ik = W.data[i * W.cols + k];
-      const double *A_in_k = A_in.data + k * m;
-      for (int j = 0; j < m; j++) {
-        A_out_i[j] += W_ik * A_in_k[j];
-      }
-    }
-
-    for (int j = 0; j < m; j++) {
+  matrix_multiply_append(&W, &A_in, &A_out);
+  for (int i = 0; i < A_out.rows; i++) {
+    double *A_out_i = A_out.data + i * m;
+    for (int j = 0; j < m; ++j) {
       A_out_i[j] = neural_sigmoid(A_out_i[j]);
     }
   }
@@ -596,7 +564,7 @@ static void calculate_output_layer(neural_network_t *network, int output_layer) 
 }
 
 // Allocate memory for the data used in training and inference.
-static char *allocate_data(neural_network_t *network, int m) {
+static void *allocate_data(neural_network_t *network, int m) {
   if (!network || m == 0) {
     return NULL;
   }
@@ -622,3 +590,7 @@ static char *allocate_data(neural_network_t *network, int m) {
 
   return network->data;
 }
+
+// static void *allocate_data_Q(neural_network_t *network, int m) {
+//   return NULL:
+// }

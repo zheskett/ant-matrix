@@ -126,7 +126,7 @@ void ant_turn(ant_t *ant, ant_turn_action_t turn_action, double delta_time) {
     return;
   }
 
-  ant->rotation = constrain_angle(ant->rotation + ((double)turn_action) * ANT_TURN_SPEED * delta_time);
+  ant->rotation = constrain_angle(ant->rotation + ((double)turn_action - 1.0) * ANT_TURN_SPEED * delta_time);
 }
 
 bool ant_step(ant_t *ant, double delta_time) {
@@ -242,9 +242,9 @@ static ant_logic_t ant_decision(ant_t *ant, double delta_time) {
 
   ant_turn_action_t turn_action = ANT_TURN_NONE;
   if (turn_strength >= 0.75) {
-    turn_action = ANT_TURN_RIGHT;
-  } else if (turn_strength <= -0.75) {
     turn_action = ANT_TURN_LEFT;
+  } else if (turn_strength <= -0.75) {
+    turn_action = ANT_TURN_RIGHT;
   }
   return (ant_logic_t){turn_action, action};
 }

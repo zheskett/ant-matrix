@@ -43,9 +43,9 @@ typedef enum { SINGLE_THREAD, MULTI_THREAD, ENDING_THREAD } simulation_mode_t;
  * 9: has food
  *
  * OUTPUT:
- * 0: turn left
+ * 0: turn right
  * 1: no turn
- * 2: turn right
+ * 2: turn left
  * 3: step
  * 4: gather
  * 5: drop
@@ -528,9 +528,9 @@ static void train_ants(double fixed_delta) {
       ant_logic_t logic = ant_train_update(ant, fixed_delta);
 
       double outputs[ANN_OUTPUTS] = {0};
-      outputs[0] = logic.turn_action == ANT_TURN_LEFT ? 1.0 : 0.0;
+      outputs[0] = logic.turn_action == ANT_TURN_RIGHT ? 1.0 : 0.0;
       outputs[1] = logic.turn_action == ANT_TURN_NONE ? 1.0 : 0.0;
-      outputs[2] = logic.turn_action == ANT_TURN_RIGHT ? 1.0 : 0.0;
+      outputs[2] = logic.turn_action == ANT_TURN_LEFT ? 1.0 : 0.0;
 
       outputs[3] = logic.action == ANT_STEP_ACTION ? 1.0 : 0.0;
       outputs[4] = logic.action == ANT_GATHER_ACTION ? 1.0 : 0.0;
@@ -551,17 +551,18 @@ static void train_ants(double fixed_delta) {
         network_train_step(ant, inputs, outputs);
       }
     } else {
-      const double *pred = neural_run(ant->net, inputs);
+      vector_t inputs_vec = {inputs, ANN_INPUTS};
+      const double *pred = neural_run(ant->net, &inputs_vec)->data;
       ant_logic_t logic = {0};
 
       int choice = 0;
-      logic.turn_action = ANT_TURN_LEFT;
+      logic.turn_action = ANT_TURN_RIGHT;
       if (pred[1] > pred[choice]) {
         logic.turn_action = ANT_TURN_NONE;
         choice = 1;
       }
       if (pred[2] > pred[choice]) {
-        logic.turn_action = ANT_TURN_RIGHT;
+        logic.turn_action = ANT_TURN_LEFT;
       }
 
       choice = 3;
@@ -656,7 +657,9 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
   }
 
   if (run) {
-    const double error = neural_train(ant->net, m, input_ptr, output_ptr, learning_rate);
+    const matrix_t input_matrix = {(double *)input_ptr, m, ANN_INPUTS};
+    const matrix_t output_matrix = {(double *)output_ptr, m, ANN_OUTPUTS};
+    const double error = neural_train(ant->net, &input_matrix, &output_matrix, learning_rate);
     if (epoch % (MAX(1, ((int)2e6 / m))) == 0) {
       printf("Epoch: %d, Error: % .6f, Learning Rate: % .6f\n", epoch, error, learning_rate);
     }
@@ -668,7 +671,8 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
 
   if (simulation_mode == SINGLE_THREAD && !warp && rand() % 10000 == 0) {
     const double *pred;
-    pred = neural_run(ant->net, inputs);
+    const vector_t inputs_vec = {(double *)inputs, ANN_INPUTS};
+    pred = neural_run(ant->net, &inputs_vec)->data;
     printf("Inputs: ");
     for (int j = 0; j < ANN_INPUTS; j++) {
       printf("%.3f ", inputs[j]);
