@@ -17,4 +17,14 @@ typedef struct {
   int cols;     /**< Number of columns in the matrix (m) */
 } matrix_t;
 
+/**
+ * @brief Vector structure for representing a vector with dynamic data.
+ */
+typedef struct {
+  double *data; /**< Pointer to the data of the vector */
+  int rows;     /**< Number of rows in the vector (n) */
+} vector_t;
+
+double matrix_get(const matrix_t *matrix, int row, int col);
+
 #endif /* MATRIX_H */

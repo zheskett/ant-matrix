@@ -4,13 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "neural/matrix.h"
 #include "util/util.h"
 
 static double calculate_cost(neural_network_t *network, int m, const double *y, const double *y_hat);
 static void forward_propagate_layer(neural_network_t *network, int layer, const matrix_t A_in, matrix_t A_out);
 static void calculate_output_layer(neural_network_t *network, int output_layer);
-static int neural_layer_offset(neural_network_t *network, int layer);
 static char *allocate_data(neural_network_t *network, int m);
 
 static inline double neural_sigmoid(double x) { return (x > 45 ? 1.0 : (x < -45 ? -1.0 : 1.0 / (1.0 + exp(-x)))); }
@@ -25,6 +23,7 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
   }
 
   network->num_hidden_layers = num_hidden_layers;
+  network->num_layers = num_hidden_layers + 2;
   network->total_neurons = 0;
   network->total_weights = 0;
   network->data_size = 0;
@@ -32,7 +31,7 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
   network->neuron_counts = NULL;
   network->output = NULL;
   network->bias = NULL;
-  network->t_weights = NULL;
+  network->weightsT = NULL;
 
   int weights_size = 0;
   int total_neurons = neuron_counts_array[0];
@@ -50,29 +49,47 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
   network->total_neurons = total_neurons;
   network->total_weights = weights_size;
 
-  network->neuron_counts = calloc(num_hidden_layers + 2, sizeof(*network->neuron_counts));
+  network->neuron_counts = calloc(network->num_layers, sizeof(*network->neuron_counts));
   if (!network->neuron_counts) {
     neural_free(network);
     return NULL;
   }
-  memcpy(network->neuron_counts, neuron_counts_array, (num_hidden_layers + 2) * sizeof(*network->neuron_counts));
+  memcpy(network->neuron_counts, neuron_counts_array, network->num_layers * sizeof(*network->neuron_counts));
 
-  network->output = calloc(total_neurons, sizeof(*network->output));
-  if (!network->output) {
+  // Allocate memory for output, weights, and bias
+  size_t required_matrices_data_size = (network->total_weights + network->total_neurons * 2) * sizeof(double);
+  required_matrices_data_size +=
+      (network->num_layers - 1) * sizeof(matrix_t) + network->num_layers * sizeof(vector_t) * 2;
+
+  char *data_ptr = (char *)malloc(required_matrices_data_size);
+  if (!data_ptr) {
     neural_free(network);
     return NULL;
   }
 
-  network->t_weights = calloc(weights_size, sizeof(*network->t_weights));
-  if (!network->t_weights) {
-    neural_free(network);
-    return NULL;
-  }
+  network->output = (vector_t *)data_ptr;
+  data_ptr += network->num_layers * sizeof(vector_t);
+  network->weightsT = (matrix_t *)data_ptr;
+  data_ptr += (network->num_layers - 1) * sizeof(matrix_t);
+  network->bias = (vector_t *)data_ptr;
+  data_ptr += network->num_layers * sizeof(vector_t);
 
-  network->bias = calloc(total_neurons, sizeof(*network->bias));
-  if (!network->bias) {
-    neural_free(network);
-    return NULL;
+  // Initialize output, weights, and bias matrices
+  for (int i = 0; i < network->num_layers - 1; i++) {
+    network->weightsT[i].data = (double *)data_ptr;
+    network->weightsT[i].rows = network->neuron_counts[i + 1];
+    network->weightsT[i].cols = network->neuron_counts[i];
+    data_ptr += network->neuron_counts[i + 1] * network->neuron_counts[i] * sizeof(double);
+  }
+  for (int i = 0; i < network->num_layers; i++) {
+    network->bias[i].data = (double *)data_ptr;
+    network->bias[i].rows = network->neuron_counts[i];
+    data_ptr += network->neuron_counts[i] * sizeof(double);
+  }
+  for (int i = 0; i < network->num_layers; i++) {
+    network->output[i].data = (double *)data_ptr;
+    network->output[i].rows = network->neuron_counts[i];
+    data_ptr += network->neuron_counts[i] * sizeof(double);
   }
 
   // Calculate the size of the data used for training and inference (8 is arbitrary)
@@ -86,12 +103,12 @@ neural_network_t *neural_create(int num_hidden_layers, const int neuron_counts_a
 }
 
 const double *neural_run(neural_network_t *network, const double *input) {
-  memcpy(network->output, input, network->neuron_counts[0] * sizeof(double));
+  memcpy(network->output[0].data, input, network->neuron_counts[0] * sizeof(double));
   for (int i = 1; i < network->num_hidden_layers + 2; i++) {
     calculate_output_layer(network, i);
   }
 
-  return (const double *)(network->output + neural_layer_offset(network, network->num_hidden_layers + 1));
+  return (const double *)(network->output[network->num_layers - 1].data);
 }
 
 double neural_train(neural_network_t *network, int m, const double *inputs, const double *desired_outputs, double lr) {
@@ -178,7 +195,7 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   dC/dW^[l] = (delta^[l])(A^[l-1]^T)
   */
   // Output layer
-  double *bias_L = network->bias + neural_layer_offset(network, L);
+  double *bias_L = network->bias[L].data;
   for (int i = 0; i < network->neuron_counts[L]; i++) {
     double sum = 0.0;
     double *delta_Li = delta[L].data + i * m;
@@ -214,10 +231,11 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
     // dC/dA^[l] = (W^[l+1]^T)(delta^[l+1])
     const int in_size = network->neuron_counts[l];
     const int out_size = network->neuron_counts[l + 1];
-    const double (*W_l1)[in_size] = neural_layer_t_weights(network, l + 1);
+    const matrix_t W_l1_mtr = neural_layer_weightsT(network, l + 1);
+    double (*W_l1)[in_size] = (double (*)[in_size])W_l1_mtr.data;
     const double *delta_l1 = delta[l + 1].data;
     double *delta_l = delta[l].data;
-    double *bias_l = network->bias + neural_layer_offset(network, l);
+    double *bias_l = network->bias[l].data;
 
     // Cache optimized order
     // #pragma omp parallel for
@@ -263,19 +281,19 @@ double neural_train(neural_network_t *network, int m, const double *inputs, cons
   // Apply gradient descent on weights
   // #pragma omp parallel for
   for (int i = 0; i < network->total_weights; i++) {
-    network->t_weights[i] -= lr * dC_dW[0].data[i];
+    network->weightsT[0].data[i] -= lr * dC_dW[0].data[i];
   }
 
   return cost;
 }
 
 void neural_randomize_weights(neural_network_t *network, double min_weight, double max_weight) {
-  if (!network || !network->t_weights) {
+  if (!network || !network->weightsT) {
     return;
   }
 
   for (int i = 0; i < network->total_weights; i++) {
-    network->t_weights[i] = min_weight + (max_weight - min_weight) * ((double)rand() / RAND_MAX);
+    network->weightsT[0].data[i] = min_weight + (max_weight - min_weight) * ((double)rand() / RAND_MAX);
   }
 }
 
@@ -285,20 +303,11 @@ void neural_randomize_bias(neural_network_t *network, double min_bias, double ma
   }
 
   for (int i = 0; i < network->total_neurons; i++) {
-    network->bias[i] = min_bias + (max_bias - min_bias) * ((double)rand() / RAND_MAX);
+    network->bias[0].data[i] = min_bias + (max_bias - min_bias) * ((double)rand() / RAND_MAX);
   }
 }
 
-double (*neural_layer_t_weights(neural_network_t *network, int out_layer))[] {
-  int offset = 0;
-  for (int i = 0; i < out_layer - 1; i++) {
-    int out_size_prev = network->neuron_counts[i + 1];
-    int in_size_prev = network->neuron_counts[i];
-
-    offset += out_size_prev * in_size_prev;
-  }
-  return (double (*)[network->neuron_counts[out_layer - 1]])(network->t_weights + offset);
-}
+matrix_t neural_layer_weightsT(neural_network_t *network, int out_layer) { return network->weightsT[out_layer - 1]; }
 
 void neural_print(neural_network_t *network, FILE *fp) {
   if (!network || !fp) {
@@ -316,14 +325,14 @@ void neural_print(neural_network_t *network, FILE *fp) {
   fprintf(fp, "\nWeights:");
   for (int i = 0; i < network->num_hidden_layers + 1; i++) {
     fprintf(fp, "\nLayer %d-%d:\n", i, i + 1);
-    double (*layer_weights)[network->neuron_counts[i]] = neural_layer_t_weights(network, i + 1);
+    matrix_t layer_weights = neural_layer_weightsT(network, i + 1);
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       fprintf(fp, "[");
       for (int k = 0; k < network->neuron_counts[i + 1]; k++) {
         if (k > 0) {
           fprintf(fp, ", ");
         }
-        fprintf(fp, "% .2f", layer_weights[k][j]);
+        fprintf(fp, "% .2f", matrix_get(&layer_weights, k, j));
       }
       fprintf(fp, "]\n");
     }
@@ -332,7 +341,7 @@ void neural_print(neural_network_t *network, FILE *fp) {
   fprintf(fp, "\nBiases:\n");
   for (int i = 1; i < network->num_hidden_layers + 2; i++) {
     fprintf(fp, "Layer %d: ", i);
-    double *bias = network->bias + neural_layer_offset(network, i);
+    double *bias = network->bias[i].data;
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       if (j > 0) {
         fprintf(fp, ", ");
@@ -345,7 +354,7 @@ void neural_print(neural_network_t *network, FILE *fp) {
   fprintf(fp, "\nOutputs:\n");
   for (int i = 0; i < network->num_hidden_layers + 2; i++) {
     fprintf(fp, "Layer %d: ", i);
-    double *output = network->output + neural_layer_offset(network, i);
+    double *output = network->output[i].data;
     for (int j = 0; j < network->neuron_counts[i]; j++) {
       if (j > 0) {
         fprintf(fp, ", ");
@@ -361,7 +370,7 @@ void neural_print(neural_network_t *network, FILE *fp) {
   }
 }
 
-bool neural_write(neural_network_t *network, const char *filename) {
+/* bool neural_write(neural_network_t *network, const char *filename) {
   if (!network || !filename) {
     return false;
   }
@@ -375,9 +384,9 @@ bool neural_write(neural_network_t *network, const char *filename) {
   int neural_structure[3] = {network->num_hidden_layers, network->total_neurons, network->total_weights};
   fwrite(neural_structure, sizeof(int), sizeof(neural_structure) / sizeof(int), fp);
 
-  // Write neuron counts, t_weights, bias. Ignore output/data
+  // Write neuron counts, weightsT, bias. Ignore output/data
   fwrite(network->neuron_counts, sizeof(int), network->num_hidden_layers + 2, fp);
-  fwrite(network->t_weights, sizeof(double), network->total_weights, fp);
+  fwrite(network->weightsT, sizeof(double), network->total_weights, fp);
   fwrite(network->bias, sizeof(double), network->total_neurons, fp);
 
   if (ferror(fp)) {
@@ -426,16 +435,16 @@ neural_network_t *neural_read(const char *filename) {
     return NULL;
   }
 
-  double *t_weights = malloc(total_weights * sizeof(double));
-  if (!t_weights) {
+  double *weightsT = malloc(total_weights * sizeof(double));
+  if (!weightsT) {
     free(neuron_counts);
     fclose(fp);
     return NULL;
   }
-  fread(t_weights, sizeof(double), total_weights, fp);
+  fread(weightsT, sizeof(double), total_weights, fp);
   if (ferror(fp) || feof(fp)) {
     free(neuron_counts);
-    free(t_weights);
+    free(weightsT);
     fclose(fp);
     fprintf(stderr, "Could not read file %s", filename);
     return NULL;
@@ -444,14 +453,14 @@ neural_network_t *neural_read(const char *filename) {
   double *bias = malloc(total_neurons * sizeof(double));
   if (!bias) {
     free(neuron_counts);
-    free(t_weights);
+    free(weightsT);
     fclose(fp);
     return NULL;
   }
   fread(bias, sizeof(double), total_neurons, fp);
   if (ferror(fp)) {
     free(neuron_counts);
-    free(t_weights);
+    free(weightsT);
     free(bias);
     fclose(fp);
     fprintf(stderr, "Could not read file %s", filename);
@@ -463,7 +472,7 @@ neural_network_t *neural_read(const char *filename) {
   neural_network_t *network = malloc(sizeof(neural_network_t));
   if (!network) {
     free(neuron_counts);
-    free(t_weights);
+    free(weightsT);
     free(bias);
     return NULL;
   }
@@ -473,7 +482,7 @@ neural_network_t *neural_read(const char *filename) {
   network->total_weights = total_weights;
   network->neuron_counts = neuron_counts;
   network->output = calloc(total_neurons, sizeof(double));
-  network->t_weights = t_weights;
+  network->weightsT = weightsT;
   network->bias = bias;
 
   network->data = NULL;
@@ -485,25 +494,7 @@ neural_network_t *neural_read(const char *filename) {
   }
 
   return network;
-}
-
-neural_network_t *neural_copy(const neural_network_t *network) {
-  if (!network) {
-    return NULL;
-  }
-
-  neural_network_t *copy = neural_create(network->num_hidden_layers, network->neuron_counts);
-  if (!copy) {
-    return NULL;
-  }
-
-  // Copy weights, biases, and outputs
-  memcpy(copy->t_weights, network->t_weights, network->total_weights * sizeof(double));
-  memcpy(copy->bias, network->bias, network->total_neurons * sizeof(double));
-  memcpy(copy->output, network->output, network->total_neurons * sizeof(double));
-
-  return copy;
-}
+} */
 
 void neural_free(neural_network_t *network) {
   if (!network) {
@@ -512,27 +503,23 @@ void neural_free(neural_network_t *network) {
 
   if (network->neuron_counts) {
     free(network->neuron_counts);
+    network->neuron_counts = NULL;
   }
   if (network->output) {
     free(network->output);
-  }
-  if (network->t_weights) {
-    free(network->t_weights);
-  }
-  if (network->bias) {
-    free(network->bias);
+    network->output = NULL;
   }
   if (network->data) {
     free(network->data);
+    network->data = NULL;
   }
-  network->data = NULL;
-  network->neuron_counts = NULL;
-  network->output = NULL;
-  network->t_weights = NULL;
+  network->weightsT = NULL;
   network->bias = NULL;
   network->num_hidden_layers = 0;
   network->total_neurons = 0;
   network->total_weights = 0;
+  network->num_layers = 0;
+  network->data_size = 0;
   free(network);
 }
 
@@ -564,57 +551,45 @@ static double calculate_cost(neural_network_t *network, int m, const double *y, 
 }
 
 static void forward_propagate_layer(neural_network_t *network, int in_layer, const matrix_t A_in, matrix_t A_out) {
-  int out_offset = neural_layer_offset(network, in_layer + 1);
-
   const int m = A_in.cols;
-  const double (*W)[A_in.rows] = neural_layer_t_weights(network, in_layer + 1);
-  const double *b = network->bias + out_offset;
+  const matrix_t W = neural_layer_weightsT(network, in_layer + 1);
+  const vector_t b = network->bias[in_layer + 1];
 
   // A[L+1] = sigmoid(Z[L+1]) = W[L+1] * A[L] + b[L+1])
-  for (int i = 0; i < A_out.rows; ++i) {
+  for (int i = 0; i < A_out.rows; i++) {
     double *A_out_i = A_out.data + i * m;
     for (int j = 0; j < m; ++j) {
-      A_out_i[j] = b[i];
+      A_out_i[j] = b.data[i];
     }
 
     // Cache optimized matrix multiplication
-    for (int k = 0; k < A_in.rows; ++k) {
-      const double W_ik = W[i][k];
+    for (int k = 0; k < A_in.rows; k++) {
+      const double W_ik = W.data[i * W.cols + k];
       const double *A_in_k = A_in.data + k * m;
-      for (int j = 0; j < m; ++j) {
+      for (int j = 0; j < m; j++) {
         A_out_i[j] += W_ik * A_in_k[j];
       }
     }
 
-    for (int j = 0; j < m; ++j) {
+    for (int j = 0; j < m; j++) {
       A_out_i[j] = neural_sigmoid(A_out_i[j]);
     }
   }
 }
 
-static int neural_layer_offset(neural_network_t *network, int layer) {
-  int offset = 0;
-  for (int i = 0; i < layer; i++) {
-    offset += network->neuron_counts[i];
-  }
-  return offset;
-}
-
 static void calculate_output_layer(neural_network_t *network, int output_layer) {
   int in_size = network->neuron_counts[output_layer - 1];
   int out_size = network->neuron_counts[output_layer];
-  int in_offset = neural_layer_offset(network, output_layer - 1);
-  int out_offset = in_offset + in_size;
 
-  const double *input = network->output + in_offset;
-  double *output = network->output + out_offset;
-  const double (*t_weights)[in_size] = neural_layer_t_weights(network, output_layer);
-  const double *bias = network->bias + out_offset;
+  const double *input = network->output[output_layer - 1].data;
+  double *output = network->output[output_layer].data;
+  const matrix_t weightsT = neural_layer_weightsT(network, output_layer);
+  const double *bias = network->bias[output_layer].data;
 
   for (int i = 0; i < out_size; i++) {
     double sum = bias[i];
     for (int j = 0; j < in_size; j++) {
-      sum += t_weights[i][j] * input[j];
+      sum += weightsT.data[i * weightsT.cols + j] * input[j];
     }
     output[i] = neural_sigmoid(sum);
   }
@@ -626,7 +601,7 @@ static char *allocate_data(neural_network_t *network, int m) {
     return NULL;
   }
 
-  const int num_layers = network->num_hidden_layers + 2;
+  const int num_layers = network->num_layers;
   const int Y_items = network->neuron_counts[num_layers - 1] * m;
   const int A_matrices_items = network->total_neurons * m;
   const int delta_matrices_items = network->total_neurons * m;
