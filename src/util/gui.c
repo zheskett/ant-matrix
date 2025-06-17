@@ -118,6 +118,33 @@ void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool d
   }
 }
 
+void gui_draw_progress_bar(Rectangle bounds, float progress, const char *text) {
+  if (progress < 0.0f || progress > 1.0f) {
+    return;
+  }
+  // Draw the outline
+  const float half_width = PROGRESS_BAR_OUTLINE_WIDTH / 2.0f;
+  const Rectangle outline_bounds = {bounds.x - half_width, bounds.y - half_width,
+                                    bounds.width + PROGRESS_BAR_OUTLINE_WIDTH,
+                                    bounds.height + PROGRESS_BAR_OUTLINE_WIDTH};
+  DrawRectangleRounded(outline_bounds, PROGRESS_BAR_ROUNDNESS, 0, PROGRESS_BAR_OUTLINE_COLOR);
+
+  // Draw the background
+  DrawRectangleRounded(bounds, PROGRESS_BAR_ROUNDNESS, 0, PROGRESS_BAR_BACKGROUND_COLOR);
+
+  // Draw the filled part
+  const Rectangle filled_rect = {bounds.x, bounds.y, bounds.width * progress, bounds.height};
+  DrawRectangleRounded(filled_rect, PROGRESS_BAR_ROUNDNESS, 0, PROGRESS_BAR_COLOR);
+
+  // Draw the text
+  if (text) {
+    const int text_width = MeasureText(text, TEXT_SIZE);
+    const int text_height = TEXT_SIZE;
+    Vector2 text_position = {bounds.x + (bounds.width - text_width) / 2, bounds.y + (bounds.height - text_height) / 2};
+    DrawText(text, (int)text_position.x, (int)text_position.y, TEXT_SIZE, TEXT_COLOR);
+  }
+}
+
 static Color get_neuron_color(double value, bool is_output) {
   value = is_output ? dec(fmax(0, fmin(1.0, value))) : tanh(value);
 

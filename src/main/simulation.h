@@ -17,6 +17,7 @@
 
 #define LEARN_RATE 0.11
 #define LEARN_RATE_DECAY 0.99999999
+#define LEARN_RATE_MIN 0.0001
 
 // 1 angle, 2 positions (spawn/food), 1 has_food, 1 near food, 1 is_coliding
 #define ANN_INPUTS 10

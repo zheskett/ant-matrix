@@ -365,6 +365,17 @@ static void render() {
     gui_draw_neural_network((Vector2){10, 70}, ant->net, !training);
   }
 
+  if (training) {
+    const float progress_bar_location_x = SCREEN_W / 2.0f;
+    const float progress_bar_width = 300.0f;
+    const Rectangle progress_bar_bounds = {progress_bar_location_x - progress_bar_width / 2.0f, SCREEN_W / 2.0f + 40,
+                                           progress_bar_width, 20};
+    // Learning rate decays logarithmically, so we need to adjust the progress accordingly
+    float progress = 1.0f - log(learning_rate / LEARN_RATE_MIN) / log(LEARN_RATE / LEARN_RATE_MIN);
+    progress = fmaxf(0.0f, fminf(1.0f, progress));
+    gui_draw_progress_bar(progress_bar_bounds, progress, "Training Progress");
+  }
+
   EndTextureMode();
 
   if (simulation_mode != SINGLE_THREAD) {
@@ -665,7 +676,7 @@ static void network_train_step(ant_t *ant, const double *inputs, const double *o
     }
     dyn_arr_clear(input_list);
     dyn_arr_clear(output_list);
-    learning_rate = fmax(learning_rate * (pow(LEARN_RATE_DECAY, (double)m)), 1e-4);
+    learning_rate = fmax(learning_rate * (pow(LEARN_RATE_DECAY, (double)m)), LEARN_RATE_MIN);
     epoch++;
   }
 

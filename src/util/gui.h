@@ -29,6 +29,11 @@
 #define NETWORK_NEURON_SPACING 20.0f
 #define NETWORK_NEURON_SIZE 10.0f
 #define NETWORK_CONNECTION_WIDTH 1.0f
+#define PROGRESS_BAR_COLOR (Color){200, 0, 200, 255}
+#define PROGRESS_BAR_BACKGROUND_COLOR GRAY
+#define PROGRESS_BAR_ROUNDNESS 0.3f
+#define PROGRESS_BAR_OUTLINE_COLOR WHITE
+#define PROGRESS_BAR_OUTLINE_WIDTH 8.0f
 
 /**
  * @brief Draws a button with the specified text and returns whether it was clicked.
@@ -75,5 +80,13 @@ void gui_draw_label_centered(Vector2 position, const char *text);
  * @param draw_output Whether to draw the output values of the neurons or the biases.
  */
 void gui_draw_neural_network(Vector2 position, neural_network_t *network, bool draw_output);
+
+/**
+ * @brief Draws a progress bar at the specified bounds with the given progress.
+ *
+ * @param bounds The rectangle bounds of the progress bar.
+ * @param progress The progress value (0.0 to 1.0).
+ */
+void gui_draw_progress_bar(Rectangle bounds, float progress, const char *text);
 
 #endif /* GUI_H */
